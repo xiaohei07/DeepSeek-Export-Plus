@@ -61,8 +61,12 @@ for (const name of ["manifest.json", "content/style.css", "print/index.html"])
 await cp(resolve(root, "public/icons"), resolve(dist, "icons"), {
   recursive: true,
 });
-for (const name of ["LICENSE", "THIRD_PARTY_NOTICES.md"])
-  await copyFile(resolve(root, name), resolve(dist, name));
+await copyFile(resolve(root, "LICENSE"), resolve(dist, "LICENSE"));
+await mkdir(resolve(dist, "licenses"), { recursive: true });
+await copyFile(
+  resolve(root, "docs/THIRD_PARTY_NOTICES.md"),
+  resolve(dist, "licenses/THIRD_PARTY_NOTICES.md"),
+);
 const lock = JSON.parse(
   await readFile(resolve(root, "package-lock.json"), "utf8"),
 );

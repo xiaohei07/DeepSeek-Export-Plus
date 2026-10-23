@@ -1,6 +1,5 @@
 import { zipSync } from "fflate";
 import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
 const files = {};
 async function walk(path, prefix = "") {
   for (const item of await readdir(path, { withFileTypes: true })) {
@@ -15,15 +14,12 @@ await mkdir("output", { recursive: true });
 const name = `DeepSeek-Export-Plus-${pkg.version}.zip`,
   bytes = zipSync(files, { level: 6 });
 await writeFile("output/" + name, bytes);
-const sha = createHash("sha256").update(bytes).digest("hex");
-await writeFile("output/SHA256SUMS", `${sha}  ${name}\n`);
 console.log(
   JSON.stringify(
     {
       file: "output/" + name,
       bytes: bytes.length,
       entries: Object.keys(files).length,
-      sha256: sha,
     },
     null,
     2,
