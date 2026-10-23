@@ -1,6 +1,6 @@
 # 来源与依赖
 
-本项目基于 [sati0121/DeepSeek-Exporter](https://github.com/sati0121/DeepSeek-Exporter)，保留原有 MIT License 与 `Copyright (c) 2026 sati0121`。后续修改由07xiaohei维护，以DeepSeek Export Plus独立发布。保留原项目授权，未向上游提交此次大范围改动的PR。
+本项目基于 [sati0121/DeepSeek-Exporter](https://github.com/sati0121/DeepSeek-Exporter)，保留原有 MIT License 与 `Copyright (c) 2026 sati0121`。后续修改由07xiaohei维护，以DeepSeek Export Plus独立发布。
 
 运行时使用以下开源库，完整许可证随构建复制到 `dist/licenses/`：
 
