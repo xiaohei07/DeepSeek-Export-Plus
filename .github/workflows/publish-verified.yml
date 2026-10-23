@@ -1,0 +1,44 @@
+name: Publish verified 2.1.1 artifact
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-verified.yml']
+permissions:
+  contents: write
+  actions: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4af812a48bd0885501cfe5eacda3be9884588893
+          persist-credentials: false
+      - name: Verify the completed build belongs to this exact source
+        run: |
+          gh api repos/xiaohei07/DeepSeek-Export-Plus/actions/runs/39963432118 > verified-run.json
+          python3 - <<'PY'
+          import json
+          run = json.load(open('verified-run.json'))
+          assert run['head_sha'] == '4af812a48bd0885501cfe5eacda3be9884588893'
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          PY
+      - name: Download the installation artifact that passed all tests
+        run: |
+          gh run download 39963432118 --name DeepSeek-Export-Plus --dir release-download
+          python3 - <<'PY'
+          import json, zipfile
+          with zipfile.ZipFile('release-download/DeepSeek-Export-Plus-2.1.1.zip') as z:
+              assert z.testzip() is None
+              assert json.loads(z.read('manifest.json'))['version'] == '2.1.1'
+              assert len(z.namelist()) == 44
+          PY
+      - name: Publish the verified installation ZIP
+        run: |
+          if ! gh release view v2.1.1 >/dev/null 2>&1; then
+            gh release create v2.1.1 release-download/DeepSeek-Export-Plus-2.1.1.zip --target 4af812a48bd0885501cfe5eacda3be9884588893 --title "DeepSeek Export Plus v2.1.1" --notes-file docs/RELEASE-NOTES.md
+          fi
+          gh run cancel 39963432026 || true
