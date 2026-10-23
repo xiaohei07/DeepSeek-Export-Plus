@@ -1,6 +1,6 @@
 {
   "name": "deepseek-export-plus",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "DeepSeek网页对话导出浏览器插件",
   "type": "module",
   "scripts": {
