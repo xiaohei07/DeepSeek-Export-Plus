@@ -284,12 +284,12 @@ export function urlMatchesFile(url, filename) {
 // ---------------- 结构解析器 ----------------
 
 /**
- * Locate the visible composer structurally, then insert before its send control.
+ * Find a horizontal control row with enough spare width for the toolbar.
  * Called again after hydration and route changes; avoid versioned class names.
  * The reference element is always a direct child of the returned parent.
- * @returns {{root: Element, before: Element}|null}
+ * @returns {{composer: Element, root?: Element, before?: Element, separateRow?: boolean}|null}
  */
-export function resolveComposerAnchor() {
+export function resolveComposerAnchor(toolbarWidth = 164) {
   // Prefer the currently visible composer; hashed classes can match stale or
   // unrelated containers during route changes and hydration.
   const ta = pickComposerTextarea();
@@ -313,12 +313,63 @@ export function resolveComposerAnchor() {
         ) ||
         buttons[buttons.length - 1] ||
         null;
-      if (last && last.parentElement) {
-        console.debug(
-          "[DSX][selector] composerAnchor → 结构定位（发送按钮所在层）",
+      const upload = buttons.find((b) =>
+        /上传|添加附件|添加文件|upload|attach/i.test(
+          (b.getAttribute("aria-label") || "") +
+            " " +
+            (b.getAttribute("title") || ""),
+        ),
+      );
+      // The send control can live in a fixed 40px wrapper. Never insert into
+      // that wrapper: walk up to a horizontal row and account for its siblings.
+      for (
+        let before = upload || last;
+        before && before !== root;
+        before = before.parentElement
+      ) {
+        const row = before.parentElement;
+        if (row.contains(ta)) break;
+        const style = getComputedStyle(row);
+        if (
+          !/^(inline-)?flex$/.test(style.display) ||
+          style.flexDirection !== "row"
+        )
+          continue;
+        const children = [...row.children].filter(
+          (el) => !isOwnUI(el) && isVisible(el),
         );
-        return { root: last.parentElement, before: last };
+        const number = (value) => parseFloat(value) || 0;
+        const occupied = children.reduce((sum, el) => {
+          const css = getComputedStyle(el);
+          return (
+            sum +
+            el.getBoundingClientRect().width +
+            number(css.marginLeft) +
+            number(css.marginRight)
+          );
+        }, 0);
+        const available =
+          row.clientWidth -
+          number(style.paddingLeft) -
+          number(style.paddingRight) -
+          occupied -
+          number(style.columnGap) * children.length;
+        if (available >= toolbarWidth + 8 && row.clientHeight >= 36)
+          return { composer: root, root: row, before };
       }
+      // Reserve an actual row within the composer when its controls cannot fit
+      // another item. Floating above it would cover DeepSeek's scroll control.
+      let before = upload || last;
+      while (before?.parentElement && before.parentElement !== root)
+        before = before.parentElement;
+      const layout = getComputedStyle(root);
+      if (
+        before &&
+        !before.contains(ta) &&
+        !(/flex/.test(layout.display) && layout.flexDirection === "row")
+      )
+        return { composer: root, root, before, separateRow: true };
+      return { composer: root };
     }
   }
   return null;

@@ -29,9 +29,12 @@ function placeButtons(container) {
   container.dataset.route = location.pathname;
   syncTheme(container);
   try {
-    const anchor = resolveComposerAnchor();
-    if (anchor) {
-      container.classList.remove("dsx-floating");
+    const anchor = resolveComposerAnchor(
+      container.getBoundingClientRect().width || 164,
+    );
+    if (anchor?.root) {
+      container.classList.remove("dsx-page-toolbar");
+      container.classList.toggle("dsx-separate-row", !!anchor.separateRow);
       if (
         container.parentElement !== anchor.root ||
         container.nextElementSibling !== anchor.before
@@ -40,27 +43,15 @@ function placeButtons(container) {
       if (container.getBoundingClientRect().height) return true;
     }
   } catch {
-    /* Compact floating fallback is available on every route. */
+    /* A normal document row is safer than covering the page's own controls. */
   }
-  container.classList.add("dsx-floating");
-  let bounds = [...document.querySelectorAll(".ds-message")]
-    .map((el) => el.getBoundingClientRect())
-    .filter((r) => r.width > 250 && r.right > 0 && r.right <= innerWidth);
-  if (!bounds.length)
-    bounds = [...document.querySelectorAll('main, [role="main"]')]
-      .map((el) => el.getBoundingClientRect())
-      .filter(
-        (r) =>
-          r.width > 250 &&
-          r.width < innerWidth - 32 &&
-          r.right > 0 &&
-          r.right <= innerWidth,
-      );
-  const right = bounds.length
-    ? Math.max(16, innerWidth - Math.max(...bounds.map((r) => r.right)))
-    : 20;
-  container.style.setProperty("--dsx-floating-right", right + "px");
-  if (container.parentElement !== document.body)
-    document.body.append(container);
+  container.classList.remove("dsx-separate-row");
+  container.classList.add("dsx-page-toolbar");
+  const column = document.querySelector('main, [role="main"]') || document.body;
+  if (
+    container.parentElement !== column ||
+    column.firstElementChild !== container
+  )
+    column.prepend(container);
   return true;
 }

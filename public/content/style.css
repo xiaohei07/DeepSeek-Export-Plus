@@ -1,25 +1,36 @@
 #ai-exporter-buttons {
   display: inline-flex;
+  flex-shrink: 0;
+  white-space: nowrap;
+  align-self: center;
   align-items: center;
   gap: 4px;
-  margin-left: 8px;
+  margin-left: auto;
+  margin-right: 8px;
   color: var(--fg, #202124);
   background: var(--bg, #fff);
   border-radius: 10px;
-  padding: 3px;
+  padding: 2px;
   font:
     14px/1.4 system-ui,
     sans-serif;
   z-index: 1000;
 }
-#ai-exporter-buttons.dsx-floating {
-  position: fixed;
-  right: var(--dsx-floating-right, 20px);
-  bottom: 20px;
-  box-shadow: 0 4px 20px #0003;
+#ai-exporter-buttons.dsx-separate-row,
+#ai-exporter-buttons.dsx-page-toolbar {
+  display: flex;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 0 8px auto;
+  align-self: flex-end;
+  grid-column: 1 / -1;
+}
+#ai-exporter-buttons.dsx-page-toolbar {
+  margin-bottom: 12px;
 }
 #ai-exporter-buttons .ai-exporter-btn {
   appearance: none;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -27,11 +38,11 @@
   border: 0;
   background: transparent;
   color: inherit;
-  padding: 5px 9px;
+  padding: 4px 8px;
   border-radius: 7px;
   font: inherit;
   cursor: pointer;
-  min-height: 36px;
+  min-height: 32px;
 }
 #ai-exporter-buttons .ai-exporter-btn:hover {
   background: var(--soft);
@@ -41,7 +52,7 @@
   outline-offset: 2px;
 }
 #ai-exporter-buttons img {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
 }

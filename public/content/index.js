@@ -15,10 +15,18 @@ function init() {
   const timer = setInterval(() => {
     if (!document.hidden) createButtons();
   }, 1500);
+  let layoutFrame;
+  const resize = () => {
+    cancelAnimationFrame(layoutFrame);
+    layoutFrame = requestAnimationFrame(createButtons);
+  };
+  addEventListener("resize", resize);
   addEventListener(
     "pagehide",
     () => {
       clearInterval(timer);
+      cancelAnimationFrame(layoutFrame);
+      removeEventListener("resize", resize);
       theme.disconnect();
     },
     { once: true },
