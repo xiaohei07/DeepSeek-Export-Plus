@@ -314,8 +314,8 @@ try {
     });
     await page.waitForFunction(
       () =>
-        document.querySelector("#ai-exporter-buttons")?.parentElement?.id ===
-        "controls",
+        document.querySelector("#ai-exporter-buttons")?.dataset.placement ===
+        "row",
     );
     assert.equal(await page.locator("#ai-exporter-buttons").count(), 1);
   };
