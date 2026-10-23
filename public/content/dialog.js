@@ -1,10 +1,16 @@
 import styles from "./dialog.css";
 import { extractConversationData } from "./extractor.js";
-import { prepareExport, prepareAttachmentArchive } from "./exportBundle.js";
+import {
+  prepareExport,
+  prepareAttachmentArchive,
+  prepareSingleAttachment,
+} from "./exportBundle.js";
 import {
   conversationRounds,
   selectRounds,
-  safeFilename,
+  documentTitle,
+  isSharedConversation,
+  timestampedFilename,
 } from "./conversation.js";
 
 export function pageTheme() {
@@ -45,16 +51,18 @@ export function syncTheme(host) {
     host.style.setProperty("--" + name, theme[name]);
   host.style.colorScheme = theme.dark ? "dark" : "light";
 }
-export function saveDownload(content, title, extension, mime) {
+export function saveDownload(content, filename, mime) {
   const blob = new Blob([content], {
     type:
       mime ||
-      (extension === "zip" ? "application/zip" : "text/markdown;charset=utf-8"),
+      (filename.endsWith(".zip")
+        ? "application/zip"
+        : "text/markdown;charset=utf-8"),
   });
   const url = URL.createObjectURL(blob),
     link = document.createElement("a");
   link.href = url;
-  link.download = safeFilename(title) + "." + extension;
+  link.download = filename;
   document.body.append(link);
   link.click();
   link.remove();
@@ -183,14 +191,14 @@ export async function openExportDialog(mode = "conversation") {
       : "整理好了。整段保存，或者只选你需要的几轮。";
   settings.innerHTML = `<div class="notice">${previewNote}</div>${
     mode === "conversation"
-      ? `<label class="title-label">文档标题<input type="text" id="title" maxlength="150"></label>
+      ? `<label class="title-label">${isSharedConversation(data) ? "文件名前缀（分享页正文标题固定为“DeepSeek 对话记录”）" : "文档标题"}<input type="text" id="title" maxlength="150"></label>
     <div class="row between"><h3>选择对话轮次</h3><button id="select-all">取消全选</button></div>
     <div class="row range"><span>范围</span><input id="from" type="number" min="1" max="${rounds.length}" value="1" aria-label="起始轮次"><span>至</span><input id="to" type="number" min="1" max="${rounds.length}" value="${rounds.length}" aria-label="结束轮次"><button id="apply-range">选中范围</button></div>
     <div class="round-list"></div><div class="options"><label class="option"><input id="thinking" type="checkbox">包含思考过程与工具记录</label><label class="option"><input id="offline" type="checkbox" checked>Markdown附带图片与附件（ZIP）</label></div>`
-      : `<div class="row between"><h3>对话附件</h3><button id="select-all">取消全选</button></div><div class="file-list"></div>`
+      : `<div class="row between"><h3>对话附件</h3><button id="select-all">取消全选</button></div><div class="file-list"></div><p>选择1个文件直接下载，选择多个文件打包为ZIP。</p>`
   }`;
   const title = root.querySelector("#title");
-  if (title) title.value = data.title;
+  if (title) title.value = documentTitle(data);
   const count = document.createElement("span");
   count.className = "count";
   footer.append(count);
@@ -249,6 +257,9 @@ export async function openExportDialog(mode = "conversation") {
     root.querySelector("#select-all").textContent =
       selected.size === items.length ? "取消全选" : "全选";
     actions.forEach((button) => (button.disabled = !selected.size));
+    if (mode === "files" && actions[0])
+      actions[0].textContent =
+        selected.size > 1 ? "打包下载所选文件" : "下载所选文件";
   };
   checks.forEach((check) => (check.onchange = update));
   root.querySelector("#select-all").onclick = () => {
@@ -312,13 +323,29 @@ export async function openExportDialog(mode = "conversation") {
     action(
       "打包下载所选文件",
       async () => {
-        const result = await prepareAttachmentArchive(
-          [...selected].map((i) => files[i]),
-          { signal: controller.signal, onProgress: progress },
-        );
+        const chosen = [...selected].map((i) => files[i]);
+        if (chosen.length === 1) {
+          const result = await prepareSingleAttachment(chosen[0], {
+            signal: controller.signal,
+            onProgress: progress,
+          });
+          controller.signal.throwIfAborted();
+          saveDownload(result.bytes, result.filename, result.type);
+          progress(
+            `已请求下载：${result.filename}。完成状态请查看浏览器下载列表。`,
+          );
+          return;
+        }
+        const result = await prepareAttachmentArchive(chosen, {
+          signal: controller.signal,
+          onProgress: progress,
+        });
         controller.signal.throwIfAborted();
         if (!result.zip) throw new Error("没有选中可打包的附件");
-        saveDownload(result.zip, data.title + "-附件", "zip");
+        saveDownload(
+          result.zip,
+          timestampedFilename(documentTitle(data) + "-附件", "zip"),
+        );
         progress(
           `ZIP已生成：${result.saved}个文件${result.failed ? `，${result.failed}个失败（原因见压缩包内的附件清单）` : ""}。浏览器已收到一次下载请求。`,
         );
@@ -328,7 +355,7 @@ export async function openExportDialog(mode = "conversation") {
   } else {
     const exportData = () => ({
       ...selectRounds(data, selected),
-      title: title.value.trim() || data.title,
+      title: title.value.trim() || documentTitle(data),
     });
     const build = (forPrint) =>
       prepareExport(exportData(), {
@@ -348,7 +375,10 @@ export async function openExportDialog(mode = "conversation") {
     action("PDF", async () => {
       const result = await build(true);
       controller.signal.throwIfAborted();
-      await printPreview(result.markdown, exportData().title);
+      await printPreview(
+        result.markdown,
+        timestampedFilename(exportData().title),
+      );
       progress(
         "PDF预览已打开。点击“打印 / 保存为PDF”，将目标打印机选择为“另存为PDF”。" +
           (result.warnings.length ? "请留意文档开头的导出提示。" : ""),
@@ -361,8 +391,7 @@ export async function openExportDialog(mode = "conversation") {
         controller.signal.throwIfAborted();
         saveDownload(
           result.zip || result.markdown,
-          exportData().title,
-          result.zip ? "zip" : "md",
+          timestampedFilename(exportData().title, result.zip ? "zip" : "md"),
         );
         progress(
           result.warnings.length

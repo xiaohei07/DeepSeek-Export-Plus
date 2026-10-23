@@ -2,9 +2,10 @@ import { zipSync, strToU8 } from "fflate";
 import { marked } from "marked";
 import { readAttachment } from "./attachments.js";
 import { formatConversation } from "./markdown.js";
+import { safeFilename } from "./conversation.js";
 
 function decode(dataURL) {
-  const match = /^data:([^;,]+);base64,([\s\S]+)$/.exec(dataURL);
+  const match = /^data:([^;,]+);base64,([\s\S]*)$/.exec(dataURL);
   if (!match) throw new Error("附件数据格式无效");
   return {
     type: match[1],
@@ -12,11 +13,13 @@ function decode(dataURL) {
   };
 }
 function filenameFor(file, type) {
+  const original = String(file.filename || "附件");
+  const extension = original.match(/.+(\.[a-z0-9]{1,12})$/i)?.[1] || "";
   let name =
-    file.filename
-      .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
-      .replace(/[. ]+$/, "")
-      .slice(0, 150) || "附件";
+    safeFilename(
+      extension ? original.slice(0, -extension.length) : original,
+      140,
+    ) + extension;
   if (file.isImage) {
     const ext = {
       "image/jpeg": "jpg",
@@ -32,6 +35,27 @@ function filenameFor(file, type) {
       ext;
   }
   return name;
+}
+
+/** Read and validate once, shared by direct downloads and ZIP/PDF assets. */
+export async function prepareSingleAttachment(
+  file,
+  { read = readAttachment, signal, onProgress = () => {} } = {},
+) {
+  signal?.throwIfAborted();
+  onProgress(`正在下载：${file.filename}…`);
+  const dataURL = await read(file);
+  signal?.throwIfAborted();
+  const { type, bytes } = decode(dataURL);
+  if (file.isImage && !/^image\/(png|jpeg|webp|gif)$/.test(type))
+    throw new Error("图片服务未返回可嵌入的图片");
+  if (
+    !file.isImage &&
+    Number(file.size) > 0 &&
+    bytes.length !== Number(file.size)
+  )
+    throw new Error("文件大小不符，未作为原文件保存");
+  return { bytes, type, filename: filenameFor(file, type), dataURL };
 }
 
 export async function prepareExport(
@@ -63,17 +87,11 @@ export async function prepareExport(
     signal?.throwIfAborted();
     if (cached.has(file.url)) return cached.get(file.url);
     onProgress(`正在保存图片与附件（${++count}）…`);
-    const dataURL = await read(file);
-    signal?.throwIfAborted();
-    const { type, bytes } = decode(dataURL);
-    if (file.isImage && !/^image\/(png|jpeg|webp|gif)$/.test(type))
-      throw new Error("图片服务未返回可嵌入的图片");
-    if (
-      !file.isImage &&
-      Number(file.size) > 0 &&
-      bytes.length !== Number(file.size)
-    )
-      throw new Error("文件大小不符，未作为原文件保存");
+    const {
+      dataURL,
+      bytes,
+      filename: name,
+    } = await prepareSingleAttachment(file, { read, signal });
     if (total + bytes.length > (forPrint ? 5 : 100) * 1024 * 1024)
       throw new Error(
         forPrint
@@ -81,7 +99,6 @@ export async function prepareExport(
           : "附件总量超过 100 MB，请分批导出文件",
       );
     total += bytes.length;
-    const name = filenameFor(file, type);
     const path = `assets/${String(Object.keys(archive).length + 1).padStart(3, "0")}-${name}`;
     if (offline && !forPrint) archive[path] = bytes;
     const result = {
