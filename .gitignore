@@ -1,3 +1,4 @@
+# Local dependencies, build products and private validation inputs.
 node_modules/
 dist/
 output/
@@ -9,3 +10,4 @@ tmp/
 /2026-*.zip
 .impeccable/
 docs/agent/
+/分析材料/
