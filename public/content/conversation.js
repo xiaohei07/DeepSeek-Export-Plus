@@ -1,4 +1,30 @@
-// One title/round model shared by the document, filename and export picker.
+// Shared pages lack a reliable conversation title; do not promote a prompt to H1.
+export function isSharedConversation(conversation) {
+  if (!conversation.url) return conversation.source === "share-api";
+  try {
+    const url = new URL(conversation.url);
+    return (
+      url.hostname === "chat.deepseek.com" &&
+      /^\/share\/[^/]+\/?$/i.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+export function documentTitle(conversation) {
+  return isSharedConversation(conversation)
+    ? "DeepSeek 对话记录"
+    : String(conversation.title || "DeepSeek 对话记录")
+        .replace(/[\r\n]/g, " ")
+        .trim();
+}
+export function timestampedFilename(title, extension = "", date = new Date()) {
+  const pad = (number, length = 2) => String(number).padStart(length, "0");
+  const time = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
+  return `${safeFilename(title)}_${time}${extension ? "." + extension : ""}`;
+}
+
+// Resolve chat titles and preserve original round numbers for partial exports.
 export function conversationTitle(title, messages = [], pageTitle = "") {
   const clean = (value) =>
     String(value || "")
@@ -38,12 +64,13 @@ export function selectRounds(conversation, numbers) {
       .flatMap((r) => r.messages),
   };
 }
-export function safeFilename(title) {
+export function safeFilename(title, maximum = 100) {
   const text =
     String(title || "")
       .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
       .replace(/[. ]+$/, "")
-      .slice(0, 100) || "DeepSeek 对话记录";
+      .slice(0, maximum)
+      .replace(/[. ]+$/, "") || "DeepSeek 对话记录";
   return /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)/i.test(text)
     ? "_" + text
     : text;

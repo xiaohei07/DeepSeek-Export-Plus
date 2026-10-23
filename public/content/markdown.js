@@ -3,6 +3,7 @@ import { gfm } from "turndown-plugin-gfm";
 import { marked } from "marked";
 import { attachmentMarkdown, markdownLabel } from "./attachments.js";
 import { toolMarkdown } from "./tools.js";
+import { documentTitle } from "./conversation.js";
 
 const LANGUAGE = /^[a-z0-9][a-z0-9_+#.-]*$/i;
 export function codeFence(code, language = "text") {
@@ -123,9 +124,7 @@ export function formatThinking(markdown) {
 }
 
 export function formatConversation(conversation, includeThinking = true) {
-  const title = String(conversation.title || "DeepSeek 对话记录")
-    .replace(/[\r\n]/g, " ")
-    .trim();
+  const title = documentTitle(conversation);
   const chunks = [`# ${markdownLabel(title)}`];
   if (conversation.url)
     chunks.push(`来源：<${conversation.url.replace(/[<>\s]/g, "")}>`);
