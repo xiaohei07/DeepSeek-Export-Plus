@@ -363,6 +363,24 @@ try {
     await chatPreview.locator("#document blockquote").textContent(),
     /工具调用 · 搜索网页/,
   );
+  for (const format of ["html", "txt", "json"])
+    await page.locator(`input[name=format][value=${format}]`).check();
+  await page.getByRole("button", { name: "打包导出（4种格式）" }).click();
+  await nextDownload("output/chat-多格式验收.zip");
+  const chatFormats = unzipSync(await readFile("output/chat-多格式验收.zip"));
+  for (const format of ["md", "html", "txt", "json"]) {
+    const content = strFromU8(chatFormats[`对话.${format}`]);
+    assert.match(content, /区间合并与文件导出/);
+    assert.match(content, /先确认区间边界/);
+    assert.match(content, /docs.python.org/);
+  }
+  const chatJSON = JSON.parse(strFromU8(chatFormats["对话.json"]));
+  assert.deepEqual(
+    chatJSON.rounds[0].messages[1].reasoning.map((part) => part.kind),
+    ["thinking", "tool", "thinking"],
+  );
+  for (const format of ["html", "txt", "json"])
+    await page.locator(`input[name=format][value=${format}]`).uncheck();
   await page.goto("https://chat.deepseek.com/a/chat/selectors");
   await page.getByRole("button", { name: "导出对话", exact: true }).click();
   await page.locator(".round-list .item").first().waitFor();
@@ -408,6 +426,7 @@ try {
     chatHistoryBridge: true,
     chatFragmentSelectorsAndToolOrder: true,
     chatToolsInMDAndPDF: true,
+    chatMultiFormatTools: true,
     collapsedThinking: true,
     selection: true,
     title: true,

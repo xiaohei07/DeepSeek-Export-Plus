@@ -3,7 +3,7 @@ import { chromium } from "playwright";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import assert from "node:assert/strict";
-await mkdir("output/2.1.2", { recursive: true });
+await mkdir("output/layout", { recursive: true });
 await mkdir("tmp", { recursive: true });
 await mkdir("docs/images", { recursive: true });
 const context = await chromium.launchPersistentContext(
@@ -82,7 +82,7 @@ try {
               a.y < b.bottom &&
               a.bottom > b.y;
             await page.screenshot({
-              path: `output/2.1.2/${name}.png`,
+              path: `output/layout/${name}.png`,
             });
             if (
               ((width === 983 && theme === "dark" && height === 36) ||
@@ -258,7 +258,7 @@ try {
   );
   assert.equal(await page.locator("#composer #ai-exporter-buttons").count(), 0);
   await writeFile(
-    "output/2.1.2/layout-results.json",
+    "output/layout/layout-results.json",
     JSON.stringify(results, null, 2),
   );
   console.log(
