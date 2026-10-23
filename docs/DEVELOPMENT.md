@@ -25,9 +25,15 @@
 
 `exportBundle.js`下载并缓存选中轮次的附件，把图片链接改为相对路径或PDF内嵌数据。相同URL复用一次读取结果，二进制文件避免重复压缩。附件窗口选1个时直接保存原始字节，选多个时复用打包流程，只产生一个ZIP下载；同名文件加序号，失败项进入清单。两种下载共用大小、图片类型和取消检查；失败不会伪装成空文件，真正的零字节文件则允许保存。长文件名保留扩展名。`background/index.js`负责允许来源检查、跨域附件读取、PDF临时存储。
 
+2.2增加`formats.js`。同一份经过轮次筛选、附件本地化的数据交给四种格式，按实际勾选渲染，单格式无附件时返回文档，有多个格式或本地附件时统一生成ZIP。相对路径按段进行URL编码，归档文件名仍可读，修复空格、`#`和`%`被当作URL含义的问题。
+
+HTML复用安全Markdown渲染器，原始HTML转义后再由DOMPurify清理；只嵌入本地`assets`图片或允许的光栅data URL，远程图片保留链接。输出无脚本，CSP限制自动加载，公式以MathML保存，不依赖外部字体。TXT遍历Markdown词元，保留代码字面内容、列表顺序、表格单元格和链接，不用全局删除标点的方式处理。JSON采用显式字段列表，未勾选思考时不输出`reasoning`，不直接序列化页面对象；公开格式见[JSON说明](JSON-FORMAT.md)。
+
+格式名称存于`chrome.storage.local`，思考选项不持久化。新增格式与附件读取没有增加manifest权限。
+
 share正文标题统一为“DeepSeek 对话记录”，chat保留可编辑标题；`conversation.js`根据会话URL区分，不依赖是否成功读取分享接口。导出时才为下载名称附加本地时间，避免把时间写进正文。PDF预览的`document.title`提供带时间的建议保存名，最终文件名仍由浏览器打印窗口决定。
 
-`print/`是独立扩展页。Marked解析Markdown，DOMPurify清理HTML，KaTeX使用随包附带的字体，浏览器负责分页和保存PDF。打印代码和字体不进入聊天页的主脚本。
+`print/`是独立扩展页。Marked解析Markdown，DOMPurify清理HTML，KaTeX使用随包附带的字体，浏览器负责分页和保存PDF。2.2的HTML导出也使用本地KaTeX生成MathML，所以渲染库会进入内容脚本；打印页专用逻辑和字体仍留在独立扩展页。
 
 ## 构建与测试
 
@@ -47,6 +53,8 @@ node tests/replay.mjs path/to/share.json path/to/attachments
 
 ## 发布版本
 
+当前正式版本为2.2.0，v2.1.2作为历史稳定版本保留。发布工作流仅接受正式语义版本，不能把带`-rc`的包版本当作稳定版发布。商店审核与GitHub发布分别进行，准备流程见[上架材料](store/SUBMISSION.md)。
+
 更新`package.json`、锁文件和`public/manifest.json`中的版本号，移除用于临时测试的`version_name`，并同步`CHANGELOG.md`、`docs/RELEASE-NOTES.md`。版本改动进入`main`后，Release工作流会运行单元测试、构建和浏览器测试，通过后创建对应的`v版本号`发行版，附上安装ZIP。也支持推送同名版本标签触发；标签必须与包版本一致，已有发行版的附件不会被覆盖。
 
 GitHub自动提供的Source code是源码压缩包，不能直接当扩展加载。用户安装应选`DeepSeek-Export-Plus-版本号.zip`，自行开发再选择源码。
@@ -59,7 +67,7 @@ GitHub自动提供的Source code是源码压缩包，不能直接当扩展加载
 
 ## 产品与界面约定
 
-面向需要长期保存DeepSeek网页对话的用户。支持chat和share页面，输出Markdown、带附件的ZIP、可打印PDF。保持对话轮次、用户与DeepSeek身份、正文标题与代码结构；思考和工具记录使用引用，不额外加斜体。允许选取部分轮次。
+面向需要长期保存DeepSeek网页对话的用户。支持chat和share页面，2.2增加HTML、TXT、JSON与多格式ZIP，保留Markdown和原有PDF打印预览。保持对话轮次、用户与DeepSeek身份、正文标题与代码结构；思考和工具记录使用引用，不额外加斜体。允许选取部分轮次。
 
 导出在本机完成，无自建服务器、付费额度或遥测。只读取当前页面的对话及其附件。图片若来自网页预览接口，导出前明确说明是预览版。
 

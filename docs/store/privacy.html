@@ -1,0 +1,54 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer"><title>DeepSeek Export Plus隐私说明</title>
+<style>body{max-width:860px;margin:40px auto;padding:0 24px;color:#242b36;background:#fff;font:16px/1.8 system-ui,sans-serif;overflow-wrap:anywhere}h1{font-size:28px}h2{font-size:21px;margin-top:32px}a{color:#2357ae}table{display:block;overflow:auto;border-collapse:collapse}th,td{padding:10px;border:1px solid #dce2ea;text-align:left}code{background:#f4f6fa;padding:2px 4px}</style></head>
+<body><main><h1>DeepSeek Export Plus隐私说明</h1>
+<p>更新日期：2026-10-24。适用范围：DeepSeek Export Plus浏览器扩展，含2.2.0新增的格式选择与导出功能。维护者：<a href="https://github.com/xiaohei07">xiaohei07</a>。本项目与DeepSeek官方无隶属关系。</p>
+<h2>读取哪些内容</h2>
+<p>扩展用于将当前DeepSeek网页对话保存到本机。用户打开导出窗口后，扩展读取当前会话的标题、网址、消息正文、轮次、附件名称及可取得的下载地址；勾选思考后，还会提取可取得的思考文字、工具记录和来源链接。对话本身可能含个人信息，导出文件会保留用户选择的原始内容。</p>
+<p>为补全chat中的历史和折叠内容，扩展在DeepSeek页面载入时就会观察网页自然收到的历史消息响应，在页面内存中暂存当前会话的必要字段。这一步可能发生在打开导出窗口之前。它不读取Cookie、认证令牌、请求头、请求正文或浏览器的全局浏览历史，也不额外重放登录请求。思考选项控制是否写入导出文件，并不意味着网页原本收到的响应一定不含思考。</p>
+<h2>如何使用与传输</h2>
+<p>内容提取、文档转换和ZIP打包在浏览器本地完成。维护者没有用于接收对话的后端服务，不加入广告、统计或遥测，不出售对话，也不将其用于模型训练。</p>
+<p>分享页导出会请求DeepSeek的分享内容接口；保存图片和附件会请求DeepSeek文件服务。用户选择保存正文中的远程图片时，也可能向该图片原地址发起请求。以上下载使用不携带认证凭据的请求；对应服务仍可收到网络连接所需的IP地址等信息，服务本身的数据处理受其各自政策约束。导出过程不执行远程脚本。</p>
+<p>导出的HTML不自动加载远程图片、脚本或字体；没有保存到本地的图片显示为链接。主动点击文档中的来源或附件链接后，浏览器会访问对应网站。MD、TXT和JSON也可能包含原始链接，打开MD时是否联网加载图片取决于阅读软件的设置。</p>
+<h2>保存位置与期限</h2>
+<table>
+<thead>
+<tr>
+<th>内容</th>
+<th>保存方式与清理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>当前会话历史片段</td>
+<td>页面内存，最多500条消息、约8MB字符串；页面刷新后重建，切换会话后不用于新会话，重新生成等请求会清理旧缓存</td>
+</tr>
+<tr>
+<td>导出窗口中的对话与附件字节</td>
+<td>浏览器内存，完成处理或关闭窗口后等待浏览器回收；关闭窗口会停止后续处理，已发出的下载请求可能仍在结束中</td>
+</tr>
+<tr>
+<td>PDF预览</td>
+<td><code>chrome.storage.session</code>临时保存；关闭对应预览页时删除。下一次打开预览时清理超过30分钟的数据，接近容量限制时也会清理较早记录；不是严格的定时删除</td>
+</tr>
+<tr>
+<td>格式偏好</td>
+<td>2.2起在<code>chrome.storage.local</code>保存格式名称，不保存对话、思考选项或账号信息；修改格式会覆盖，卸载扩展会清除</td>
+</tr>
+<tr>
+<td>导出文件</td>
+<td>由浏览器保存到用户指定的本机目录；保留多久、是否同步或分享，由用户决定，卸载扩展不会删除已下载文件</td>
+</tr>
+<tr>
+<td>剪贴板</td>
+<td>仅点击“复制Markdown”后写入，之后由系统及用户使用的软件管理</td>
+</tr>
+</tbody></table>
+<p>附件地址可能带临时签名。长期保存建议将文件一起打包；分享导出文档之前，请自行检查其中的对话、链接和附件是否适合公开。</p>
+<h2>权限与选择</h2>
+<p>扩展仅在<code>chat.deepseek.com</code>注入内容脚本；<code>scripting</code>用于读取当前消息附近的必要字段，<code>files.deepseeksvc.com</code>访问权限用于下载附件，<code>clipboardWrite</code>用于复制，<code>storage</code>用于上述临时预览和格式偏好。不申请读取所有网站、Cookie、浏览历史或监控全局下载的权限。</p>
+<p>用户可以取消思考或附件选项、只导出部分轮次、关闭导出窗口，或在浏览器扩展管理页停用、卸载插件。上传的图片可能只能取得DeepSeek网页预览版，导出界面与文件清单会说明。</p>
+<h2>联系与变更</h2>
+<p>问题可以通过<a href="https://github.com/xiaohei07/DeepSeek-Export-Plus/issues">GitHub Issues</a>联系维护者。Issues是公开页面，请先删去私人对话、签名链接和账号凭据。若功能或数据处理方式变化，会随版本更新本说明；发布到商店时，商店中的声明应与实际版本保持一致。</p>
+</main></body></html>
