@@ -140,6 +140,14 @@ chat页面还会在内存中保留当前页面自然收到的历史消息响应�
 
 支持范围是当前桌面网页版的chat和share路由。DeepSeek的内部数据结构和页面类名都可能变化，插件无法保证未来版本、所有账号灰度界面或每种未见过的工具类型都兼容。暂未适配原生App、Firefox和Safari。
 
+## Contributors
+
+| 贡献者 | 参与内容 |
+| --- | --- |
+| [sati0121](https://github.com/sati0121) | 上游DeepSeek-Exporter原作者，提供项目基础 |
+| [07xiaohei（xiaohei07）](https://github.com/xiaohei07) | 需求、使用反馈与项目维护 |
+| GPT（通过Codex） | 协助代码实现、排错、测试与文档整理 |
+
 ## 致谢与许可
 
 - [sati0121/DeepSeek-Exporter](https://github.com/sati0121/DeepSeek-Exporter)：原项目与MIT授权。
