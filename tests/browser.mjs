@@ -1,15 +1,10 @@
 // Isolated Chromium with synthetic fixtures. No user browser profile or login.
 import { chromium } from "playwright";
-import {
-  readFile,
-  writeFile,
-  mkdir,
-  mkdtemp,
-  copyFile,
-} from "node:fs/promises";
+import { readFile, writeFile, mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
 import assert from "node:assert/strict";
 import { unzipSync, strFromU8 } from "fflate";
+import { watchDownloads } from "./downloads.mjs";
 await mkdir("tmp", { recursive: true });
 await mkdir("output/pdf", { recursive: true });
 await mkdir("docs/images", { recursive: true });
@@ -103,42 +98,9 @@ for (let i = 0; i < 3; i++)
     },
   );
 try {
-  const worker =
-    ctx.serviceWorkers()[0] || (await ctx.waitForEvent("serviceworker"));
-  await worker.evaluate(() => {
-    globalThis.downloadRequests = [];
-    const original = chrome.downloads.download.bind(chrome.downloads);
-    chrome.downloads.download = (options, callback) => {
-      downloadRequests.push({ filename: options.filename });
-      return original(options, callback);
-    };
-  });
-  let lastId = -1;
-  const nextDownload = async (target) => {
-    const deadline = Date.now() + 30000;
-    while (Date.now() < deadline) {
-      const [item] = await worker.evaluate(() =>
-        chrome.downloads.search({ limit: 1, orderBy: ["-startTime"] }),
-      );
-      if (item && item.id > lastId && item.state === "complete") {
-        lastId = item.id;
-        await copyFile(item.filename, target);
-        return;
-      }
-      if (item && item.id > lastId && item.state === "interrupted")
-        throw new Error(item.error);
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    throw new Error("Download timeout");
-  };
   const page = await ctx.newPage();
-  const cdp = await ctx.newCDPSession(page);
-  await mkdir("tmp/downloads", { recursive: true });
-  await cdp.send("Browser.setDownloadBehavior", {
-    behavior: "allow",
-    downloadPath: resolve("tmp/downloads"),
-    eventsEnabled: true,
-  });
+  const downloads = await watchDownloads(ctx, page, "tmp/downloads");
+  const nextDownload = (target) => downloads.next(target);
   await ctx.route("https://files.deepseeksvc.com/**", (r) =>
     r.fulfill({
       contentType: r.request().url().includes("demo-image")
@@ -150,6 +112,11 @@ try {
     }),
   );
   await ctx.route("https://chat.deepseek.com/**", async (r) => {
+    if (r.request().url().includes("/a/chat/selectors"))
+      return r.fulfill({
+        contentType: "text/html; charset=utf-8",
+        body: await readFile("tests/fixtures/chat-selectors.html", "utf8"),
+      });
     if (r.request().url().includes("/api/v0/share/content")) {
       if (delayNextShare) {
         delayNextShare = false;
@@ -180,10 +147,20 @@ try {
     });
   });
   await page.goto("https://chat.deepseek.com/share/fixture");
+  await page.locator("#ai-exporter-buttons").waitFor();
+  assert.ok(
+    await page.evaluate(
+      () =>
+        document.querySelector("#ai-exporter-buttons").getBoundingClientRect()
+          .right <=
+        document.querySelector("main").getBoundingClientRect().right + 1,
+    ),
+  );
   await page.getByRole("button", { name: "导出对话", exact: true }).click();
   await page.locator(".round-list .item").first().waitFor();
   assert.equal(await page.locator(".round-list .item").count(), 3);
   assert.equal(await page.locator("#title").inputValue(), "区间合并与文件导出");
+  assert.equal(await page.locator("#thinking").isChecked(), false);
   assert.match(await page.locator(".notice").textContent(), /并非原始上传文件/);
   await page.screenshot({ path: "docs/images/export-light.png" });
   await page.evaluate(() => document.body.classList.add("dark"));
@@ -214,10 +191,11 @@ try {
   assert.doesNotMatch(md, /## 第 1 轮/);
   assert.match(md, /## 第 2 轮/);
   assert.match(md, /## 第 3 轮/);
-  assert.match(md, /> \*\*工具调用 · 搜索网页/);
+  assert.doesNotMatch(md, /先确认区间边界|工具调用/);
   assert.doesNotMatch(md, /> \*先确认/);
   assert.equal(strFromU8(zipped["assets/001-示例.md"]), "abc");
   assert.deepEqual(Buffer.from(zipped["assets/002-示例图-预览.png"]), pixel);
+  await page.locator("#thinking").check();
   await page.locator("#from").fill("1");
   await page.getByRole("button", { name: "选中范围" }).click();
   const previewing = ctx.waitForEvent("page");
@@ -255,34 +233,59 @@ try {
   await page.screenshot({ path: "docs/images/files-loading.png" });
   await page.locator(".file-list .item").first().waitFor();
   assert.equal(await page.locator(".file-list .item").count(), 2);
-  assert.match(await page.locator(".file-list").textContent(), /原上传大小12\.1KB/);
+  assert.match(
+    await page.locator(".file-list").textContent(),
+    /原上传大小12\.1KB/,
+  );
   await page.screenshot({ path: "docs/images/files-dark.png" });
-  await page.getByRole("button", { name: "下载所选文件" }).click();
+  const beforeBatch = downloads.count;
+  await page.getByRole("button", { name: "打包下载所选文件" }).click();
   await page
     .locator(".status")
-    .filter({ hasText: "已下载2个文件" })
+    .filter({ hasText: "ZIP已生成：2个文件" })
     .waitFor({ timeout: 20000 });
-  const downloads = await worker.evaluate(() =>
-    chrome.downloads.search({ limit: 10, orderBy: ["-startTime"] }),
-  );
-  // CDP redirects data-URL downloads to generic names. Assert the requested names
-  // and actual saved bytes independently instead of depending on CDP filenames.
-  const requested = await worker.evaluate(() => downloadRequests);
-  assert.ok(requested.some((d) => d.filename.endsWith("示例.md")));
-  assert.ok(requested.some((d) => d.filename.endsWith("示例图-预览.png")));
-  const saved = await Promise.all(
-    downloads
-      .filter((d) => d.state === "complete")
-      .map((d) => readFile(d.filename)),
-  );
-  assert.ok(saved.some((bytes) => bytes.equals(Buffer.from("abc"))));
-  assert.ok(saved.some((bytes) => bytes.equals(pixel)));
-  lastId = Math.max(...downloads.map((d) => d.id));
+  await nextDownload("output/附件批量验收.zip");
+  assert.equal(downloads.count - beforeBatch, 1);
+  const batch = unzipSync(await readFile("output/附件批量验收.zip"));
+  assert.equal(strFromU8(batch["assets/001-示例.md"]), "abc");
+  assert.deepEqual(Buffer.from(batch["assets/002-示例图-预览.png"]), pixel);
+  assert.equal(batch["对话.md"], undefined);
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await page.goto("https://chat.deepseek.com/a/chat/fixture");
   await page.waitForFunction(() => document.body.dataset.ready === "true");
+  // Composer hydration happens after the initial toolbar, including after reload.
+  const mountComposer = async () => {
+    await page.evaluate(() => {
+      const composer = document.createElement("form");
+      composer.id = "composer";
+      composer.style.cssText =
+        "position:fixed;bottom:20px;left:220px;width:760px;background:#eee;padding:10px";
+      composer.innerHTML =
+        '<textarea style="width:95%;height:60px" placeholder="给DeepSeek发送消息"></textarea><div id="controls" style="display:flex;justify-content:flex-end"><button type="submit" aria-label="发送">发送</button></div>';
+      document.body.append(composer);
+    });
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#ai-exporter-buttons")?.parentElement?.id ===
+        "controls",
+    );
+    assert.equal(await page.locator("#ai-exporter-buttons").count(), 1);
+  };
+  await mountComposer();
+  await page.reload();
+  await page.waitForFunction(() => document.body.dataset.ready === "true");
+  await mountComposer();
+  await page.screenshot({ path: "output/chat-toolbar.png" });
   await page.getByRole("button", { name: "导出对话", exact: true }).click();
   await page.locator(".round-list .item").first().waitFor();
+  assert.equal(await page.locator("#thinking").isChecked(), false);
+  await page.getByRole("button", { name: "导出Markdown", exact: true }).click();
+  await nextDownload("output/chat-仅正文验收.md");
+  assert.doesNotMatch(
+    await readFile("output/chat-仅正文验收.md", "utf8"),
+    /先确认区间边界|工具调用/,
+  );
+  await page.locator("#thinking").check();
   await page.getByRole("button", { name: "导出Markdown", exact: true }).click();
   await nextDownload("output/chat-功能验收.md");
   md = await readFile("output/chat-功能验收.md", "utf8");
@@ -304,15 +307,59 @@ try {
     await chatPreview.locator("#document blockquote").textContent(),
     /工具调用 · 搜索网页/,
   );
+  await page.goto("https://chat.deepseek.com/a/chat/selectors");
+  await page.getByRole("button", { name: "导出对话", exact: true }).click();
+  await page.locator(".round-list .item").first().waitFor();
+  assert.equal(await page.locator("body").getAttribute("data-clicks"), null);
+  await page.locator("#thinking").check();
+  await page.getByRole("button", { name: "导出Markdown", exact: true }).click();
+  await nextDownload("output/chat-工具顺序验收.md");
+  const orderedMD = await readFile("output/chat-工具顺序验收.md", "utf8");
+  const ordered = [
+    "先搜索资料",
+    "https://example.org/search",
+    "再核对原文",
+    "https://example.org/a",
+    "最后整理答案",
+  ].map((s) => orderedMD.indexOf(s));
+  assert.ok(
+    ordered.every((p, i) => p >= 0 && (!i || p > ordered[i - 1])),
+    ordered.join(","),
+  );
+  assert.match(orderedMD, /https:\/\/example.org\/b/);
+  assert.equal(
+    await page.locator("#toggle").getAttribute("aria-expanded"),
+    "false",
+  );
+  const selectorPreviewing = ctx.waitForEvent("page");
+  await page.getByRole("button", { name: "PDF", exact: true }).click();
+  const selectorPreview = await selectorPreviewing;
+  await selectorPreview.waitForFunction(
+    () => document.querySelector("#print")?.disabled === false,
+  );
+  const quoted = await selectorPreview
+    .locator("#document blockquote")
+    .innerText();
+  assert.ok(quoted.indexOf("再核对原文") < quoted.indexOf("原文A"));
+  assert.ok(quoted.indexOf("原文A") < quoted.indexOf("最后整理答案"));
+  assert.equal(
+    await selectorPreview.locator("#document blockquote a").count(),
+    3,
+  );
   assert.deepEqual(errors, []);
   const result = {
     share: true,
     chatHistoryBridge: true,
+    chatFragmentSelectorsAndToolOrder: true,
     chatToolsInMDAndPDF: true,
     collapsedThinking: true,
     selection: true,
     title: true,
     attachments: true,
+    attachmentBatchOneDownload: true,
+    defaultThinkingOff: true,
+    toolbarReanchorsAfterHydrationAndReload: true,
+    shareToolbarAlignedWithContent: true,
     previewNotice: true,
     lightDarkNarrow: true,
     errors,

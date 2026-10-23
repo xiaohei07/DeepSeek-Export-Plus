@@ -228,6 +228,42 @@ test("history observer captures only active-session message fields and leaves fe
     null,
   );
   context.location.pathname = "/a/chat/a";
+  const originalMessages = raw.data.biz_data.chat_messages;
+  raw.data.biz_data.cache_control = "MERGE";
+  raw.data.biz_data.chat_messages = [];
+  await context.fetch(
+    "https://chat.deepseek.com/api/v0/chat/history_messages?chat_session_id=a",
+  );
+  await new Promise((r) => setTimeout(r, 20));
+  assert.ok(
+    vm.runInContext(
+      "globalThis[Symbol.for('deepseek-export-plus.history')].read(2)",
+      context,
+    ),
+  );
+  raw.data.biz_data.cache_control = "REPLACE";
+  await context.fetch(
+    "https://chat.deepseek.com/api/v0/chat/history_messages?chat_session_id=a",
+  );
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(
+    vm.runInContext(
+      "globalThis[Symbol.for('deepseek-export-plus.history')].read(2)",
+      context,
+    ),
+    null,
+  );
+  raw.data.biz_data.chat_messages = originalMessages;
+  await context.fetch(
+    "https://chat.deepseek.com/api/v0/chat/history_messages?chat_session_id=a",
+  );
+  await new Promise((r) => setTimeout(r, 20));
+  assert.ok(
+    vm.runInContext(
+      "globalThis[Symbol.for('deepseek-export-plus.history')].read(2)",
+      context,
+    ),
+  );
   await context.fetch("https://chat.deepseek.com/api/v0/chat/completion");
   assert.equal(
     vm.runInContext(

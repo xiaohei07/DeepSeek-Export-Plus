@@ -1,17 +1,11 @@
 // Optional private sample replay: node tests/replay.mjs <share-json> <attachment-directory>
 // Input captures and output artifacts are ignored by Git and never uploaded.
 import { chromium } from "playwright";
-import {
-  readFile,
-  writeFile,
-  mkdir,
-  mkdtemp,
-  copyFile,
-} from "node:fs/promises";
+import { readFile, writeFile, mkdir, mkdtemp } from "node:fs/promises";
 import { resolve } from "node:path";
-import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import { unzipSync, strFromU8 } from "fflate";
+import { watchDownloads } from "./downloads.mjs";
 const [jsonPath, assetsPath] = process.argv.slice(2);
 if (!jsonPath || !assetsPath)
   throw new Error(
@@ -47,19 +41,11 @@ const ctx = await chromium.launchPersistentContext(
     viewport: { width: 1200, height: 1000 },
   },
 );
-const hash = (b) => createHash("sha256").update(b).digest("hex"),
-  errors = [];
+const errors = [];
 ctx.on("page", (p) => p.on("pageerror", (e) => errors.push(e.message)));
 try {
-  const worker =
-    ctx.serviceWorkers()[0] || (await ctx.waitForEvent("serviceworker"));
   const page = await ctx.newPage();
-  const cdp = await ctx.newCDPSession(page);
-  await cdp.send("Browser.setDownloadBehavior", {
-    behavior: "allow",
-    downloadPath: resolve("tmp/replay-downloads"),
-    eventsEnabled: true,
-  });
+  const downloads = await watchDownloads(ctx, page, "tmp/replay-downloads");
   await ctx.route("https://files.deepseeksvc.com/**", (route) => {
     const id =
       "file-" + new URL(route.request().url()).searchParams.get("file_id");
@@ -83,28 +69,21 @@ try {
   await page.goto("https://chat.deepseek.com/share/wwcwocs4nett58pwcl");
   await page.getByRole("button", { name: "导出对话", exact: true }).click();
   await page.locator(".round-list .item").first().waitFor();
+  assert.equal(await page.locator("#thinking").isChecked(), false);
+  await page.locator("#thinking").check();
   await page.getByRole("button", { name: "导出Markdown", exact: true }).click();
   await page
     .locator(".status")
     .filter({ hasText: "已保存" })
     .waitFor({ timeout: 60000 });
-  let download;
-  for (let i = 0; i < 100; i++) {
-    [download] = await worker.evaluate(() =>
-      chrome.downloads.search({ limit: 1, orderBy: ["-startTime"] }),
-    );
-    if (download?.state === "complete") break;
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  assert.equal(download?.state, "complete");
-  await copyFile(download.filename, "output/真实分享验收.zip");
+  await downloads.next("output/真实分享验收.zip");
   const zip = unzipSync(await readFile("output/真实分享验收.zip")),
     manifest = JSON.parse(strFromU8(zip["附件清单.json"]));
   assert.equal(manifest.length, files.length);
   assert.equal(manifest.filter((f) => f.error).length, 0);
   for (const entry of manifest) {
     const file = files.find((f) => f.file_name === entry.originalFilename);
-    assert.equal(hash(zip[entry.savedAs]), hash(buffers.get(file.id)));
+    assert.deepEqual(Buffer.from(zip[entry.savedAs]), buffers.get(file.id));
   }
   const md = strFromU8(zip["对话.md"]);
   await writeFile("output/真实分享验收.md", md);
@@ -153,7 +132,7 @@ try {
   const result = {
     rounds,
     attachments: manifest.length,
-    allAttachmentHashesMatch: true,
+    allAttachmentBytesMatch: true,
     pdf: results,
     errors,
   };

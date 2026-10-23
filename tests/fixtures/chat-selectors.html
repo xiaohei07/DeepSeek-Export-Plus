@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8"><title>分散片段测试 - DeepSeek</title>
+<style>body{font:16px/1.8 system-ui;background:#fff}main{width:760px;margin:30px auto}.ds-message{padding:15px}</style>
+<main><div class="ds-message" data-message-id="1">查资料并核对网页。</div>
+<div class="ds-message" data-message-id="2"><button id="toggle" aria-expanded="false">已思考</button><div id="thoughts"></div><div class="ds-assistant-message-main-content ds-markdown">回答正文。</div></div></main>
+<script>
+// Anonymous fixture for the public frontend's fragment selector/group structure.
+// Deliberately no complete message object or history response.
+const attach=(id,props,value)=>{document.getElementById(id).__reactFiber$fixture={memoizedProps:{messageId:2,...props},memoizedState:{memoizedState:{value}}};};
+let clicks=0;
+document.getElementById('toggle').onclick=function(){
+  clicks++;document.body.dataset.clicks=clicks;
+  const open=this.getAttribute('aria-expanded')==='false';
+  this.setAttribute('aria-expanded',String(open));
+  const target=document.getElementById('thoughts');
+  target.innerHTML=open?'<div id="groups"></div><div id="think1" class="ds-think-content"><div class="ds-markdown">先搜索资料。</div></div><div id="search">搜索结果</div><div id="think2" class="ds-think-content"><div class="ds-markdown">再核对原文。</div></div><div id="open">阅读了2个网页</div><div id="think3" class="ds-think-content"><div class="ds-markdown">最后整理答案。</div></div>':'';
+  if(!open)return;
+  attach('groups',{},[{type:'generalFragment',id:2,fragmentType:'THINK'},{type:'parallelGroup',ids:[3],toolType:'TOOL_SEARCH'},{type:'generalFragment',id:4,fragmentType:'THINK'},{type:'parallelGroup',ids:[5,6],toolType:'TOOL_OPEN'},{type:'generalFragment',id:7,fragmentType:'THINK'}]);
+  attach('think1',{fragmentId:2},{type:'THINK',id:2,content:'先搜索资料。'});
+  attach('search',{ids:[3]},{status:'detailed',results:{queries:[{query:'测试问题'}],results:[{title:'搜索来源',url:'https://example.org/search'}]}});
+  attach('think2',{fragmentId:4},{type:'THINK',id:4,content:'再核对原文。'});
+  attach('open',{ids:[5,6]},[{title:'原文A',url:'https://example.org/a'},{title:'原文B',url:'https://example.org/b'}]);
+  attach('think3',{fragmentId:7},{type:'THINK',id:7,content:'最后整理答案。'});
+};
+</script>
