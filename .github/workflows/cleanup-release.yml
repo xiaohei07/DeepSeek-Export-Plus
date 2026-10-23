@@ -1,0 +1,24 @@
+name: Remove obsolete release sidecar
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/cleanup-release.yml']
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove obsolete asset and refresh wording
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete-asset v2.0.0 SHA256SUMS --yes
+          gh release view v2.0.0 --json body --jq .body > release-notes.md
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('release-notes.md')
+          p.write_text(p.read_text().replace('7个附件的哈希比对', '7个附件的文件内容比对'))
+          PY
+          gh release edit v2.0.0 --notes-file release-notes.md
