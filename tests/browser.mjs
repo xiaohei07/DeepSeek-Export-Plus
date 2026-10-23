@@ -33,6 +33,7 @@ const source = {
   },
 };
 let delayNextShare = false;
+let failFileRead = false;
 for (let i = 0; i < 3; i++)
   source.data.biz_data.messages.push(
     {
@@ -106,9 +107,11 @@ try {
       contentType: r.request().url().includes("demo-image")
         ? "image/png"
         : "application/octet-stream",
-      body: r.request().url().includes("demo-image")
-        ? pixel
-        : Buffer.from("abc"),
+      body: failFileRead
+        ? Buffer.from("broken")
+        : r.request().url().includes("demo-image")
+          ? pixel
+          : Buffer.from("abc"),
     }),
   );
   await ctx.route("https://chat.deepseek.com/**", async (r) => {
@@ -159,7 +162,7 @@ try {
   await page.getByRole("button", { name: "导出对话", exact: true }).click();
   await page.locator(".round-list .item").first().waitFor();
   assert.equal(await page.locator(".round-list .item").count(), 3);
-  assert.equal(await page.locator("#title").inputValue(), "区间合并与文件导出");
+  assert.equal(await page.locator("#title").inputValue(), "DeepSeek 对话记录");
   assert.equal(await page.locator("#thinking").isChecked(), false);
   assert.match(await page.locator(".notice").textContent(), /并非原始上传文件/);
   await page.screenshot({ path: "docs/images/export-light.png" });
@@ -181,13 +184,20 @@ try {
   );
   await page.screenshot({ path: "docs/images/export-narrow.png" });
   await page.setViewportSize({ width: 1200, height: 960 });
+  // Share title editing changes the filename only, never the fixed document H1.
+  await page.locator("#title").fill("分享测试");
   await page.locator("#from").fill("2");
   await page.locator("#to").fill("3");
   await page.getByRole("button", { name: "选中范围" }).click();
   await page.getByRole("button", { name: "导出Markdown", exact: true }).click();
-  await nextDownload("output/功能验收.zip");
+  const shareDownload = await nextDownload("output/功能验收.zip");
+  assert.match(
+    shareDownload.suggestedFilename,
+    /^分享测试_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.zip$/,
+  );
   let zipped = unzipSync(await readFile("output/功能验收.zip")),
     md = strFromU8(zipped["对话.md"]);
+  assert.match(md, /^# DeepSeek 对话记录\n/);
   assert.doesNotMatch(md, /## 第 1 轮/);
   assert.match(md, /## 第 2 轮/);
   assert.match(md, /## 第 3 轮/);
@@ -206,7 +216,11 @@ try {
   );
   assert.equal(
     await preview.locator("#document h1").textContent(),
-    "区间合并与文件导出",
+    "DeepSeek 对话记录",
+  );
+  assert.match(
+    await preview.title(),
+    /^分享测试_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/,
   );
   assert.equal(await preview.locator("#document h2").count(), 3);
   assert.equal(await preview.locator("#document .katex").count(), 3);
@@ -250,6 +264,40 @@ try {
   assert.equal(strFromU8(batch["assets/001-示例.md"]), "abc");
   assert.deepEqual(Buffer.from(batch["assets/002-示例图-预览.png"]), pixel);
   assert.equal(batch["对话.md"], undefined);
+  // Selecting only one file must produce raw bytes, not an archive.
+  const fileChecks = page.locator(".file-list input[type=checkbox]");
+  await fileChecks.nth(1).uncheck();
+  await page.getByRole("button", { name: "下载所选文件", exact: true }).click();
+  const single = await nextDownload("output/单文件验收.md");
+  assert.equal(single.suggestedFilename, "示例.md");
+  assert.equal(await readFile("output/单文件验收.md", "utf8"), "abc");
+  await fileChecks.nth(0).uncheck();
+  await fileChecks.nth(1).check();
+  await page.getByRole("button", { name: "下载所选文件", exact: true }).click();
+  const singleImage = await nextDownload("output/单图片验收.png");
+  assert.equal(singleImage.suggestedFilename, "示例图-预览.png");
+  assert.deepEqual(await readFile("output/单图片验收.png"), pixel);
+  assert.equal(downloads.count - beforeBatch, 3);
+  await fileChecks.nth(1).uncheck();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "下载所选文件", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await fileChecks.nth(0).check();
+  failFileRead = true;
+  await page.getByRole("button", { name: "下载所选文件", exact: true }).click();
+  await page
+    .locator(".status")
+    .filter({ hasText: "未作为原文件保存" })
+    .waitFor();
+  assert.equal(
+    downloads.count - beforeBatch,
+    3,
+    "a failed single file must not download a fake file or a ZIP",
+  );
+  failFileRead = false;
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await page.goto("https://chat.deepseek.com/a/chat/fixture");
   await page.waitForFunction(() => document.body.dataset.ready === "true");
@@ -261,7 +309,7 @@ try {
       composer.style.cssText =
         "position:fixed;bottom:20px;left:220px;width:760px;background:#eee;padding:10px";
       composer.innerHTML =
-        '<textarea style="width:95%;height:60px" placeholder="给DeepSeek发送消息"></textarea><div id="controls" style="display:flex;justify-content:flex-end"><button type="submit" aria-label="发送">发送</button></div>';
+        '<textarea style="width:95%;height:60px" placeholder="给DeepSeek发送消息"></textarea><div id="controls" style="display:flex;justify-content:flex-end"><button type="submit" aria-label="发送" style="height:40px">发送</button></div>';
       document.body.append(composer);
     });
     await page.waitForFunction(
@@ -280,7 +328,15 @@ try {
   await page.locator(".round-list .item").first().waitFor();
   assert.equal(await page.locator("#thinking").isChecked(), false);
   await page.getByRole("button", { name: "导出Markdown", exact: true }).click();
-  await nextDownload("output/chat-仅正文验收.md");
+  const chatDownload = await nextDownload("output/chat-仅正文验收.md");
+  assert.match(
+    chatDownload.suggestedFilename,
+    /^区间合并与文件导出_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.md$/,
+  );
+  assert.match(
+    await readFile("output/chat-仅正文验收.md", "utf8"),
+    /^# 区间合并与文件导出\n/,
+  );
   assert.doesNotMatch(
     await readFile("output/chat-仅正文验收.md", "utf8"),
     /先确认区间边界|工具调用/,
@@ -357,6 +413,9 @@ try {
     title: true,
     attachments: true,
     attachmentBatchOneDownload: true,
+    singleAttachmentDirect: true,
+    shareFixedHeadingAndTimestampedFiles: true,
+    chatTitleAndTimestampedFiles: true,
     defaultThinkingOff: true,
     toolbarReanchorsAfterHydrationAndReload: true,
     shareToolbarAlignedWithContent: true,

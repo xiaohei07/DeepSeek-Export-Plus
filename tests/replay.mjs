@@ -6,7 +6,8 @@ import { resolve } from "node:path";
 import assert from "node:assert/strict";
 import { unzipSync, strFromU8 } from "fflate";
 import { watchDownloads } from "./downloads.mjs";
-const [jsonPath, assetsPath] = process.argv.slice(2);
+const [jsonPath, assetsPath, outputPath = "output"] = process.argv.slice(2);
+const output = (...parts) => resolve(outputPath, ...parts);
 if (!jsonPath || !assetsPath)
   throw new Error(
     "Usage: node tests/replay.mjs <share-json> <attachment-directory>",
@@ -27,7 +28,7 @@ for (const file of files)
   );
 await mkdir("tmp", { recursive: true });
 await mkdir("tmp/replay-downloads", { recursive: true });
-await mkdir("output/pdf", { recursive: true });
+await mkdir(output("pdf"), { recursive: true });
 const ctx = await chromium.launchPersistentContext(
   await mkdtemp("tmp/replay-"),
   {
@@ -76,8 +77,8 @@ try {
     .locator(".status")
     .filter({ hasText: "已保存" })
     .waitFor({ timeout: 60000 });
-  await downloads.next("output/真实分享验收.zip");
-  const zip = unzipSync(await readFile("output/真实分享验收.zip")),
+  await downloads.next(output("真实分享验收.zip"));
+  const zip = unzipSync(await readFile(output("真实分享验收.zip"))),
     manifest = JSON.parse(strFromU8(zip["附件清单.json"]));
   assert.equal(manifest.length, files.length);
   assert.equal(manifest.filter((f) => f.error).length, 0);
@@ -86,7 +87,8 @@ try {
     assert.deepEqual(Buffer.from(zip[entry.savedAs]), buffers.get(file.id));
   }
   const md = strFromU8(zip["对话.md"]);
-  await writeFile("output/真实分享验收.md", md);
+  await writeFile(output("真实分享验收.md"), md);
+  assert.match(md, /^# DeepSeek 对话记录\n/);
   const rounds = source.data.biz_data.messages.filter(
     (m) => m.role === "USER",
   ).length;
@@ -105,6 +107,14 @@ try {
     );
     assert.equal(await preview.locator("#document h2").count(), rounds);
     assert.equal(
+      await preview.locator("#document h1").textContent(),
+      "DeepSeek 对话记录",
+    );
+    assert.match(
+      await preview.title(),
+      /^DeepSeek 对话记录_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/,
+    );
+    assert.equal(
       await preview.locator("#document img").count(),
       files.filter((f) => f.is_image).length,
     );
@@ -117,27 +127,52 @@ try {
       );
     const name = "真实分享验收-" + (thinking ? "含思考" : "仅对话");
     await preview.pdf({
-      path: "output/pdf/" + name + ".pdf",
+      path: output("pdf", name + ".pdf"),
       preferCSSPageSize: true,
       printBackground: true,
     });
-    if (thinking) await preview.screenshot({ path: "output/真实分享预览.png" });
+    if (thinking)
+      await preview.screenshot({ path: output("真实分享预览.png") });
     results.push({
       thinking,
       images: await preview.locator("#document img").count(),
     });
     await preview.close();
   }
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await page.getByRole("button", { name: "导出对话内文件" }).click();
+  await page.locator(".file-list .item").first().waitFor();
+  assert.equal(await page.locator(".file-list .item").count(), files.length);
+  await page.getByRole("button", { name: "取消全选", exact: true }).click();
+  const checks = page.locator(".file-list input[type=checkbox]");
+  const beforeDirect = downloads.count;
+  await mkdir(output("single"), { recursive: true });
+  for (let i = 0; i < files.length; i++) {
+    await checks.nth(i).check();
+    await page
+      .getByRole("button", { name: "下载所选文件", exact: true })
+      .click();
+    const target = output("single", String(i + 1));
+    const download = await downloads.next(target);
+    assert.deepEqual(await readFile(target), buffers.get(files[i].id));
+    if (files[i].is_image)
+      assert.match(download.suggestedFilename, /-预览\.jpg$/);
+    else assert.equal(download.suggestedFilename, files[i].file_name);
+    await checks.nth(i).uncheck();
+  }
+  assert.equal(downloads.count - beforeDirect, files.length);
   assert.deepEqual(errors, []);
   const result = {
     rounds,
     attachments: manifest.length,
     allAttachmentBytesMatch: true,
+    singleAttachmentBytesMatch: files.length,
+    fixedShareHeading: true,
     pdf: results,
     errors,
   };
   await writeFile(
-    "output/replay-results.json",
+    output("replay-results.json"),
     JSON.stringify(result, null, 2),
   );
   console.log(result);
