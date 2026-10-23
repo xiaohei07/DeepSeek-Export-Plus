@@ -1,0 +1,42 @@
+name: Release
+on:
+  push:
+    branches: ['main']
+    paths: ['package.json', '.github/workflows/release.yml']
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Read and verify release version
+        id: version
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const tag = 'v' + JSON.parse(fs.readFileSync('package.json')).version;
+          if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error('Expected a stable semantic version');
+          if (process.env.GITHUB_REF_TYPE === 'tag' && process.env.GITHUB_REF_NAME !== tag) throw new Error('Tag and package version differ');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\n`);
+          NODE
+      - run: npm test
+      - run: npm run package
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; keeping its assets unchanged."
+            exit 0
+          fi
+          gh release create "$RELEASE_TAG" output/DeepSeek-Export-Plus-*.zip output/SHA256SUMS --target "$GITHUB_SHA" --title "DeepSeek Export Plus $RELEASE_TAG" --notes-file docs/RELEASE-NOTES.md

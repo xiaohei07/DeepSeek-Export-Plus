@@ -1,0 +1,11 @@
+node_modules/
+dist/
+output/
+tmp/
+.env*
+*.log
+.DS_Store
+/2026-*/
+/2026-*.zip
+.impeccable/
+docs/agent/

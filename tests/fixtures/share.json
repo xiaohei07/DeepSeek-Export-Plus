@@ -1,0 +1,13 @@
+{
+  "code": 0,
+  "data": {
+    "biz_code": 0,
+    "biz_data": {
+      "title": "导出测试",
+      "messages": [
+        {"message_id": 1, "role": "USER", "fragments": [{"type": "REQUEST", "content": "请展示 Python 示例。"}]},
+        {"message_id": 2, "role": "ASSISTANT", "fragments": [{"type": "THINK", "content": "第一段思考。"}, {"type": "THINK", "content": "第二段思考。"}, {"type": "RESPONSE", "content": "### 示例\n\n```python\nprint(1)\n```\n\n代码之后的正文。"}]}
+      ]
+    }
+  }
+}

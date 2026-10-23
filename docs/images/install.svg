@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="350" viewBox="0 0 1120 350" role="img" aria-labelledby="title desc">
+<title id="title">DeepSeek Export Plus安装步骤示意</title><desc id="desc">下载安装ZIP，解压到固定目录，打开扩展管理页开启开发者模式，加载含manifest.json的目录，刷新DeepSeek。</desc>
+<rect width="1120" height="350" rx="16" fill="#f3f6fb"/>
+<g font-family="Microsoft YaHei,Arial,sans-serif" fill="#202632"><text x="40" y="56" font-size="25" font-weight="700">从安装包到页面按钮</text><text x="40" y="87" font-size="15">操作示意 · Chrome与Edge的入口名称略有差异</text></g>
+<g fill="#fff" stroke="#cad5e5"><rect x="40" y="119" width="235" height="150" rx="12"/><rect x="307" y="119" width="235" height="150" rx="12"/><rect x="574" y="119" width="235" height="150" rx="12"/><rect x="841" y="119" width="239" height="150" rx="12"/></g>
+<g fill="#202632" font-family="Microsoft YaHei,Arial,sans-serif" font-size="16"><text x="60" y="153" font-weight="700">1. 下载并解压</text><text x="60" y="191">选择发行版ZIP</text><text x="60" y="221">保留在固定目录</text><text x="327" y="153" font-weight="700">2. 打开扩展管理页</text><text x="327" y="191">chrome://extensions</text><text x="327" y="221">开启开发者模式</text><text x="594" y="153" font-weight="700">3. 加载已解压的扩展</text><text x="594" y="191">选择直接包含</text><text x="594" y="221">manifest.json的目录</text><text x="861" y="153" font-weight="700">4. 刷新DeepSeek</text><text x="861" y="191">找到小肥鱼“导出”按钮</text><text x="861" y="221">选择轮次与导出格式</text><text x="40" y="314" font-size="15">自己编译时，加载npm run build生成的dist目录。安装后不要删除该目录。</text></g>
+<g stroke="#3566ce" stroke-width="2" fill="none"><path d="M281 194h20m-6-6 6 6-6 6M548 194h20m-6-6 6 6-6 6M815 194h20m-6-6 6 6-6 6"/></g>
+</svg>
