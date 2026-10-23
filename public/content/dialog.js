@@ -1,12 +1,11 @@
 import styles from "./dialog.css";
 import { extractConversationData } from "./extractor.js";
-import { prepareExport } from "./exportBundle.js";
+import { prepareExport, prepareAttachmentArchive } from "./exportBundle.js";
 import {
   conversationRounds,
   selectRounds,
   safeFilename,
 } from "./conversation.js";
-import { readAttachment } from "./attachments.js";
 
 export function pageTheme() {
   const candidates = [
@@ -142,9 +141,10 @@ export async function openExportDialog(mode = "conversation") {
       status.classList.add("error");
     }
   };
-  let data;
+  let data,
+    thinkingLoaded = false;
   try {
-    data = await extractConversationData(mode !== "files", {
+    data = await extractConversationData(false, {
       onProgress: progress,
       signal: controller.signal,
     });
@@ -186,7 +186,7 @@ export async function openExportDialog(mode = "conversation") {
       ? `<label class="title-label">文档标题<input type="text" id="title" maxlength="150"></label>
     <div class="row between"><h3>选择对话轮次</h3><button id="select-all">取消全选</button></div>
     <div class="row range"><span>范围</span><input id="from" type="number" min="1" max="${rounds.length}" value="1" aria-label="起始轮次"><span>至</span><input id="to" type="number" min="1" max="${rounds.length}" value="${rounds.length}" aria-label="结束轮次"><button id="apply-range">选中范围</button></div>
-    <div class="round-list"></div><div class="options"><label class="option"><input id="thinking" type="checkbox" checked>包含思考过程与工具记录</label><label class="option"><input id="offline" type="checkbox" checked>Markdown附带图片与附件（ZIP）</label></div>`
+    <div class="round-list"></div><div class="options"><label class="option"><input id="thinking" type="checkbox">包含思考过程与工具记录</label><label class="option"><input id="offline" type="checkbox" checked>Markdown附带图片与附件（ZIP）</label></div>`
       : `<div class="row between"><h3>对话附件</h3><button id="select-all">取消全选</button></div><div class="file-list"></div>`
   }`;
   const title = root.querySelector("#title");
@@ -285,6 +285,20 @@ export async function openExportDialog(mode = "conversation") {
       try {
         if (location.href !== sourceURL)
           throw new Error("页面已切换，请关闭窗口后重新读取");
+        if (
+          mode === "conversation" &&
+          root.querySelector("#thinking").checked &&
+          !thinkingLoaded
+        ) {
+          const expanded = await extractConversationData(true, {
+            signal: controller.signal,
+            onProgress: progress,
+          });
+          if (conversationRounds(expanded.messages).length !== rounds.length)
+            throw new Error("对话轮次已变化，请重新打开导出窗口选择");
+          data = expanded;
+          thinkingLoaded = true;
+        }
         await handler();
       } catch (error) {
         fail(error);
@@ -296,43 +310,17 @@ export async function openExportDialog(mode = "conversation") {
   };
   if (mode === "files") {
     action(
-      "下载所选文件",
+      "打包下载所选文件",
       async () => {
-        let done = 0;
-        const errors = [];
-        for (const i of selected) {
-          controller.signal.throwIfAborted();
-          const file = files[i];
-          progress(`正在下载${++done}/${selected.size}：${file.filename}`);
-          try {
-            const dataURL = await readAttachment(file);
-            controller.signal.throwIfAborted();
-            const type = dataURL.match(/^data:([^;]+)/)?.[1];
-            const ext = {
-              "image/jpeg": "jpg",
-              "image/png": "png",
-              "image/webp": "webp",
-              "image/gif": "gif",
-            }[type];
-            const filename =
-              file.isImage && ext
-                ? file.filename.replace(/\.[^.]+$/, "") + "-预览." + ext
-                : file.filename;
-            const response = await chrome.runtime.sendMessage({
-              type: "DOWNLOAD_FILE_WITH_NAME",
-              url: dataURL,
-              filename: safeFilename(filename),
-            });
-            if (!response?.success)
-              throw new Error(response?.error || "下载未完成");
-          } catch (error) {
-            errors.push(file.filename + "：" + error.message);
-          }
-        }
+        const result = await prepareAttachmentArchive(
+          [...selected].map((i) => files[i]),
+          { signal: controller.signal, onProgress: progress },
+        );
+        controller.signal.throwIfAborted();
+        if (!result.zip) throw new Error("没有选中可打包的附件");
+        saveDownload(result.zip, data.title + "-附件", "zip");
         progress(
-          errors.length
-            ? `已完成${done - errors.length}个；失败：${errors.join("；")}`
-            : `已下载${done}个文件。小肥鱼整理完毕。`,
+          `ZIP已生成：${result.saved}个文件${result.failed ? `，${result.failed}个失败（原因见压缩包内的附件清单）` : ""}。浏览器已收到一次下载请求。`,
         );
       },
       true,

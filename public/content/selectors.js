@@ -12,7 +12,7 @@
  * DeepSeek 使用动态哈希类名（如 _5cadb25、bf38813a），随前端更新而变化；
  * ds-* 前缀是设计系统类名，相对稳定，优先使用。
  *
- * 最后验证：2026-09-11
+ * 结构定位回归：2026-10-23（独立浏览器测试）
  */
 
 /** 插件自身 UI 的根节点，所有查询都要排除它们 */
@@ -284,37 +284,14 @@ export function urlMatchesFile(url, filename) {
 // ---------------- 结构解析器 ----------------
 
 /**
- * 定位输入框区域（用于插入插件按钮）
- *
- * 策略（按顺序）：
- * 1. 字面候选链命中控制栏（.ec4f5d61 等，当前页面实测仍存在）→ 插到控制栏内
- *    .bf38813a（图标行包装层，含附件与发送键）之前
- * 2. 字面候选全部失效时，用结构定位兜底（最大 textarea 的祖先容器）
- *
- * 契约：返回的 before 一定是 root 的直接子节点（或 null）——
- * insertBefore 只接受直接子节点作参照，深层后代会导致 NotFoundError
- *
- * 注意：不要把锚点换成"附件按钮所在行"这类依赖其它图标已渲染的定位——
- * 页面刚加载时附件可能尚未挂载（竞态），会导致按钮落到错误的层级。
- * .bf38813a 只要发送键存在就一定存在，是当前唯一无竞态的锚点。
- *
- * @returns {{root: Element, before: Element|null}|null}
+ * Locate the visible composer structurally, then insert before its send control.
+ * Called again after hydration and route changes; avoid versioned class names.
+ * The reference element is always a direct child of the returned parent.
+ * @returns {{root: Element, before: Element}|null}
  */
 export function resolveComposerAnchor() {
-  // 1) 字面候选链：当前页面结构实测有效
-  for (let i = 0; i < ds.composerAnchor.length; i++) {
-    const bar = document.querySelector(ds.composerAnchor[i]);
-    if (!bar || isOwnUI(bar)) continue;
-    logHit("composerAnchor", i, ds.composerAnchor[i]);
-
-    const sendArea = bar.querySelector(".bf38813a");
-    if (sendArea && sendArea.parentElement) {
-      return { root: sendArea.parentElement, before: sendArea };
-    }
-    return { root: bar, before: bar.lastElementChild };
-  }
-
-  // 2) 结构兜底：哈希类名随前端更新全部失效时
+  // Prefer the currently visible composer; hashed classes can match stale or
+  // unrelated containers during route changes and hydration.
   const ta = pickComposerTextarea();
   if (ta) {
     const root = climbToComposerRoot(ta);
@@ -328,15 +305,20 @@ export function resolveComposerAnchor() {
           'button, [role="button"], [class*="ds-icon-button"]',
         ),
       ).filter((b) => isVisible(b) && !isOwnUI(b) && !b.closest(".ds-message"));
-      const last = buttons[buttons.length - 1] || null;
+      const last =
+        buttons.find((b) =>
+          b.matches(
+            'button[type="submit"], [aria-label="发送"], [aria-label="Send"]',
+          ),
+        ) ||
+        buttons[buttons.length - 1] ||
+        null;
       if (last && last.parentElement) {
         console.debug(
           "[DSX][selector] composerAnchor → 结构定位（发送按钮所在层）",
         );
         return { root: last.parentElement, before: last };
       }
-      console.debug("[DSX][selector] composerAnchor → 结构定位（容器末尾）");
-      return { root, before: null };
     }
   }
   return null;
@@ -366,7 +348,12 @@ function climbToComposerRoot(ta) {
     const hasButton = el.querySelector(
       'button, [role="button"], [class*="ds-icon-button"]',
     );
-    if (hasButton && r.width > 300 && r.bottom > window.innerHeight * 0.5)
+    if (
+      hasButton &&
+      !el.querySelector(".ds-message") &&
+      r.width > 180 &&
+      r.bottom > window.innerHeight * 0.5
+    )
       return el;
   }
   return null;

@@ -43,17 +43,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  if (request.type === "DOWNLOAD_FILE_WITH_NAME") {
-    if (
-      !isDeepSeekSender(sender) ||
-      typeof request.url !== "string" ||
-      !/^data:[^;,]+;base64,/.test(request.url)
-    )
-      return false;
-    handleFileDownload(request.url, request.filename, sendResponse);
-    return true; // 异步响应
-  }
-
   sendResponse({ success: false, error: "未知消息类型" });
   return false;
 });
@@ -179,78 +168,4 @@ function bytesToBase64(bytes) {
     binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
   }
   return btoa(binary);
-}
-
-function sanitizeFilename(filename) {
-  return (
-    String(filename)
-      .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
-      .trim()
-      .substring(0, 200) || "export.pdf"
-  );
-}
-
-/**
- * 处理单个文件下载（用于文件导出功能）
- * @param {string} url - 文件 URL
- * @param {string} filename - 文件名
- * @param {Function} sendResponse - 响应回调
- */
-function handleFileDownload(url, filename, sendResponse) {
-  const safeFilename = sanitizeFilename(filename);
-
-  console.log("[AI Exporter] 下载文件:", safeFilename);
-
-  chrome.downloads.download(
-    {
-      url,
-      filename: `DeepSeek Export Plus/${safeFilename}`,
-      saveAs: false,
-    },
-    (downloadId) => {
-      if (chrome.runtime.lastError) {
-        console.error(
-          "[AI Exporter] 文件下载失败:",
-          chrome.runtime.lastError.message,
-        );
-        sendResponse({
-          success: false,
-          error: chrome.runtime.lastError.message,
-        });
-      } else {
-        waitForDownload(downloadId).then(
-          () => sendResponse({ success: true, downloadId }),
-          (error) => sendResponse({ success: false, error: error.message }),
-        );
-      }
-    },
-  );
-}
-
-function waitForDownload(id) {
-  return new Promise((resolve, reject) => {
-    const finish = (error) => {
-      clearTimeout(timer);
-      chrome.downloads.onChanged.removeListener(changed);
-      error ? reject(error) : resolve();
-    };
-    const changed = (delta) => {
-      if (delta.id !== id) return;
-      if (delta.state?.current === "complete") finish();
-      if (delta.state?.current === "interrupted")
-        finish(
-          new Error(`下载中断：${delta.error?.current || "浏览器未保存文件"}`),
-        );
-    };
-    const timer = setTimeout(
-      () => finish(new Error("下载未在 60 秒内完成，请检查浏览器下载列表")),
-      60000,
-    );
-    chrome.downloads.onChanged.addListener(changed);
-    chrome.downloads.search({ id }, (items) => {
-      if (items[0]?.state === "complete") finish();
-      if (items[0]?.state === "interrupted")
-        finish(new Error(`下载中断：${items[0].error || "保存失败"}`));
-    });
-  });
 }

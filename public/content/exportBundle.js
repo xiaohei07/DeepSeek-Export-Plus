@@ -40,6 +40,7 @@ export async function prepareExport(
     includeThinking = true,
     offline = false,
     forPrint = false,
+    attachmentsOnly = false,
     read = readAttachment,
     onProgress = () => {},
     signal,
@@ -139,6 +140,7 @@ export async function prepareExport(
                 `![${image.text.replace(/[\[\]\n]/g, " ")}](<${loaded.localPath}>)`,
               );
             } catch (error) {
+              signal?.throwIfAborted();
               data.warnings.push(`正文图片未保存：${error.message}`);
             }
           }
@@ -170,7 +172,7 @@ export async function prepareExport(
     offline && !forPrint && hasAssets
       ? zipSync(
           {
-            "对话.md": strToU8(markdown),
+            ...(!attachmentsOnly ? { "对话.md": strToU8(markdown) } : {}),
             "附件清单.json": strToU8(JSON.stringify(manifest, null, 2)),
             ...archive,
           },
@@ -178,4 +180,23 @@ export async function prepareExport(
         )
       : null;
   return { markdown, zip, manifest, warnings: data.warnings };
+}
+
+/** One selected batch = one browser download, including a readable failure list. */
+export async function prepareAttachmentArchive(files, options = {}) {
+  const result = await prepareExport(
+    { messages: [{ role: "user", content: "", attachments: files }] },
+    {
+      ...options,
+      includeThinking: false,
+      offline: true,
+      forPrint: false,
+      attachmentsOnly: true,
+    },
+  );
+  return {
+    ...result,
+    saved: result.manifest.filter((f) => !f.error).length,
+    failed: result.manifest.filter((f) => f.error).length,
+  };
 }

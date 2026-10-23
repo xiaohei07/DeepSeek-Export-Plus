@@ -15,6 +15,8 @@ import { fetchShareConversation, parseShareData } from "./share.js";
 import { domImages, fileFromMetadata } from "./attachments.js";
 import { messageMetadata } from "./pageMetadata.js";
 import { conversationTitle } from "./conversation.js";
+import { domReasoning } from "./reasoning.js";
+import { sourceLink } from "./tools.js";
 export { getTextContent } from "./markdown.js";
 
 const THINK =
@@ -197,38 +199,18 @@ export function extractMessage(
     thinkingToggles(clone).forEach((n) => n.remove());
     content = getTextContent(clone);
   }
-  const tools = (metadata.tools || []).map((tool) => ({
-    kind: "tool",
-    ...tool,
-  }));
-  // DOM does not always expose source payloads. Retain visible calls and links as a fallback.
-  if (!tools.length && includeThinking) {
-    const candidates = [
-      ...message.querySelectorAll(
-        '[data-tool-call], button, [role="button"], div',
-      ),
-    ].filter(
-      (el) =>
-        el.hasAttribute("data-tool-call") ||
-        (el.textContent.length < 250 &&
-          /^(?:已搜索|搜索到|已浏览|已阅读|已查看|已访问|搜索了|找到\s*\d+|Found \d+ web pages|Searched|Read \d+)/i.test(
-            el.textContent.trim(),
-          )),
-    );
-    for (const el of topLevel(
-      candidates.filter((el) => !el.closest(".ds-markdown")),
-    )) {
-      tools.push({
-        kind: "tool",
-        label: el.getAttribute("data-tool-call") || "网页工具",
-        content: el.textContent.trim(),
-        results: [...el.querySelectorAll("a[href]")].map((a) => ({
-          title: a.textContent,
-          url: a.href,
-        })),
-      });
-    }
-  }
+  const reasoning = includeThinking
+    ? metadata.reasoningComplete
+      ? metadata.reasoning
+      : domReasoning(message, metadata)
+    : [];
+  const sourceList = (metadata.sources || []).filter(
+    (s) => /^https?:\/\//i.test(s.url || "") && !content.includes(s.url),
+  );
+  if (sourceList.length)
+    content +=
+      "\n\n**本条消息的网页来源**（网页未提供全部引用位置）\n\n" +
+      sourceList.map((s, i) => `${i + 1}. ${sourceLink(s, i)}`).join("\n");
   return {
     role,
     content,
@@ -237,15 +219,13 @@ export function extractMessage(
       ...file,
       inlineInContent: !!file.url && content.includes(file.url),
     })),
-    reasoning:
-      includeThinking && tools.length
-        ? [{ kind: "thinking", content: thinking }, ...tools]
-        : undefined,
-    warnings: includeThinking
-      ? [
-          "部分聊天消息使用页面内容提取，工具记录可能不完整；若有遗漏，请刷新网页重试或使用分享页导出。",
-        ]
-      : [],
+    reasoning: reasoning.length ? reasoning : undefined,
+    warnings:
+      includeThinking && !metadata.reasoningComplete
+        ? [
+            "部分聊天消息使用页面内容提取，工具记录可能不完整；若有遗漏，请刷新网页重试或使用分享页导出。",
+          ]
+        : [],
   };
 }
 
@@ -286,6 +266,7 @@ export async function extractConversationData(
     const records = new Map();
     await scrollToLoadAllMessages({
       assertCurrent,
+      onProgress,
       visit: async (node, key, index) => {
         if (records.has(key)) return;
         assertCurrent();

@@ -47,7 +47,7 @@ if (!globalThis[key]) {
       !Array.isArray(data?.chat_messages)
     )
       return;
-    if (session !== id) {
+    if (session !== id || data.cache_control === "REPLACE") {
       session = id;
       messages.clear();
     }
