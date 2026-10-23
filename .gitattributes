@@ -1,3 +1,4 @@
+# Keep source line endings consistent across Windows and CI.
 * text=auto eol=lf
 *.png binary
 *.jpg binary
