@@ -1,12 +1,15 @@
 {
   "name": "deepseek-export-plus",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "description": "DeepSeek网页对话导出浏览器插件",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
     "test": "node --test tests/*.test.js",
-    "test:browser": "node tests/browser.mjs && node tests/layout.mjs",
+    "test:browser": "node tests/browser.mjs && node tests/formats-browser.mjs && node tests/layout.mjs && node tests/dialog-layout.mjs",
+    "test:dialog": "node tests/dialog-layout.mjs",
+    "test:formats": "node tests/formats-browser.mjs",
+    "prepare:store": "node scripts/store.mjs",
     "package": "npm run build && node scripts/package.mjs",
     "test:layout": "node tests/layout.mjs"
   },

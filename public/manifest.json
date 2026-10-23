@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "DeepSeek Export Plus · 网页对话导出",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "minimum_chrome_version": "120",
-  "description": "选择轮次导出DeepSeek chat/share对话、思考、搜索记录、图片与附件，支持Markdown、ZIP和PDF预览。",
+  "description": "按轮次保存DeepSeek chat/share对话，支持Markdown、HTML、TXT、JSON及多格式ZIP，可选思考、工具记录、图片与附件。",
   "permissions": ["clipboardWrite", "storage", "scripting"],
   "host_permissions": [
     "https://chat.deepseek.com/*",
