@@ -21,4 +21,3 @@ jobs:
           name: DeepSeek-Export-Plus
           path: |
             output/DeepSeek-Export-Plus-*.zip
-            output/SHA256SUMS

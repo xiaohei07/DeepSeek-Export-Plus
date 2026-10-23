@@ -39,4 +39,4 @@ jobs:
             echo "Release $RELEASE_TAG already exists; keeping its assets unchanged."
             exit 0
           fi
-          gh release create "$RELEASE_TAG" output/DeepSeek-Export-Plus-*.zip output/SHA256SUMS --target "$GITHUB_SHA" --title "DeepSeek Export Plus $RELEASE_TAG" --notes-file docs/RELEASE-NOTES.md
+          gh release create "$RELEASE_TAG" output/DeepSeek-Export-Plus-*.zip --target "$GITHUB_SHA" --title "DeepSeek Export Plus $RELEASE_TAG" --notes-file docs/RELEASE-NOTES.md
