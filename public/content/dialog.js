@@ -1,4 +1,5 @@
 import styles from "./dialog.css";
+import { exportFormats } from "./formats.js";
 import { extractConversationData } from "./extractor.js";
 import {
   prepareExport,
@@ -194,7 +195,18 @@ export async function openExportDialog(mode = "conversation") {
       ? `<label class="title-label">${isSharedConversation(data) ? "文件名前缀（分享页正文标题固定为“DeepSeek 对话记录”）" : "文档标题"}<input type="text" id="title" maxlength="150"></label>
     <div class="row between"><h3>选择对话轮次</h3><button id="select-all">取消全选</button></div>
     <div class="row range"><span>范围</span><input id="from" type="number" min="1" max="${rounds.length}" value="1" aria-label="起始轮次"><span>至</span><input id="to" type="number" min="1" max="${rounds.length}" value="${rounds.length}" aria-label="结束轮次"><button id="apply-range">选中范围</button></div>
-    <div class="round-list"></div><div class="options"><label class="option"><input id="thinking" type="checkbox">包含思考过程与工具记录</label><label class="option"><input id="offline" type="checkbox" checked>Markdown附带图片与附件（ZIP）</label></div>`
+    <div class="round-list"></div>
+    <fieldset class="formats"><legend>导出格式</legend><div class="format-options">${Object.entries(
+      exportFormats,
+    )
+      .map(
+        ([format, info]) =>
+          `<label class="option"><input type="checkbox" name="format" value="${format}" ${format === "md" ? "checked" : ""}>${info.label}</label>`,
+      )
+      .join(
+        "",
+      )}</div><p id="format-hint">单选直接保存，多选打包为一个ZIP。</p></fieldset>
+    <div class="options"><label class="option"><input id="thinking" type="checkbox">包含思考过程与工具记录</label><label class="option"><input id="offline" type="checkbox" checked>附带图片与附件（有文件时打包ZIP）</label></div>`
       : `<div class="row between"><h3>对话附件</h3><button id="select-all">取消全选</button></div><div class="file-list"></div><p>选择1个文件直接下载，选择多个文件打包为ZIP。</p>`
   }`;
   const title = root.querySelector("#title");
@@ -248,6 +260,26 @@ export async function openExportDialog(mode = "conversation") {
     list.append(empty);
   }
   const actions = [];
+  let exportButton;
+  const formatChecks = [...root.querySelectorAll('input[name="format"]')];
+  const selectedFormats = () =>
+    formatChecks.filter((check) => check.checked).map((check) => check.value);
+  if (mode === "conversation") {
+    try {
+      const { exportFormats: saved } =
+        await chrome.storage.local.get("exportFormats");
+      if (
+        Array.isArray(saved) &&
+        saved.some((value) => Object.hasOwn(exportFormats, value))
+      )
+        formatChecks.forEach((check) => {
+          check.checked = saved.includes(check.value);
+        });
+    } catch {
+      /* Optional preference storage must never prevent an export. */
+    }
+    if (controller.signal.aborted) return;
+  }
   const update = () => {
     selected.clear();
     checks.forEach((c, i) => {
@@ -257,11 +289,33 @@ export async function openExportDialog(mode = "conversation") {
     root.querySelector("#select-all").textContent =
       selected.size === items.length ? "取消全选" : "全选";
     actions.forEach((button) => (button.disabled = !selected.size));
+    if (exportButton) {
+      const formats = selectedFormats();
+      exportButton.disabled = !selected.size || !formats.length;
+      exportButton.textContent =
+        formats.length > 1
+          ? `打包导出（${formats.length}种格式）`
+          : formats.length
+            ? `导出${exportFormats[formats[0]].label}`
+            : "选择导出格式";
+      root.querySelector("#format-hint").textContent = formats.length
+        ? "单选直接保存，多选打包为一个ZIP。HTML适合阅读，TXT适合纯文本，JSON便于后续处理。"
+        : "请至少选择一种格式。";
+    }
     if (mode === "files" && actions[0])
       actions[0].textContent =
         selected.size > 1 ? "打包下载所选文件" : "下载所选文件";
   };
   checks.forEach((check) => (check.onchange = update));
+  formatChecks.forEach((check) => {
+    check.onchange = () => {
+      update();
+      if (selectedFormats().length)
+        chrome.storage.local
+          .set({ exportFormats: selectedFormats() })
+          .catch(() => {});
+    };
+  });
   root.querySelector("#select-all").onclick = () => {
     const all = selected.size !== items.length;
     checks.forEach((c) => (c.checked = all));
@@ -318,6 +372,7 @@ export async function openExportDialog(mode = "conversation") {
         update();
       }
     };
+    return button;
   };
   if (mode === "files") {
     action(
@@ -362,6 +417,7 @@ export async function openExportDialog(mode = "conversation") {
         includeThinking: root.querySelector("#thinking").checked,
         offline: root.querySelector("#offline").checked,
         forPrint,
+        formats: selectedFormats(),
         signal: controller.signal,
         onProgress: progress,
       });
@@ -384,14 +440,18 @@ export async function openExportDialog(mode = "conversation") {
           (result.warnings.length ? "请留意文档开头的导出提示。" : ""),
       );
     });
-    action(
+    exportButton = action(
       "导出Markdown",
       async () => {
         const result = await build(false);
         controller.signal.throwIfAborted();
         saveDownload(
-          result.zip || result.markdown,
-          timestampedFilename(exportData().title, result.zip ? "zip" : "md"),
+          result.zip || result.content,
+          timestampedFilename(
+            exportData().title,
+            result.zip ? "zip" : result.extension,
+          ),
+          result.zip ? "application/zip" : result.mime,
         );
         progress(
           result.warnings.length

@@ -3,6 +3,7 @@ import { marked } from "marked";
 import { readAttachment } from "./attachments.js";
 import { formatConversation } from "./markdown.js";
 import { safeFilename } from "./conversation.js";
+import { exportFormats, renderDocuments, validateFormats } from "./formats.js";
 
 function decode(dataURL) {
   const match = /^data:([^;,]+);base64,([\s\S]*)$/.exec(dataURL);
@@ -61,15 +62,22 @@ export async function prepareSingleAttachment(
 export async function prepareExport(
   conversation,
   {
-    includeThinking = true,
+    includeThinking = false,
+    formats = ["md"],
     offline = false,
     forPrint = false,
     attachmentsOnly = false,
     read = readAttachment,
     onProgress = () => {},
     signal,
+    windowObject,
+    exportedAt,
   } = {},
 ) {
+  const chosenFormats = validateFormats(
+    forPrint || attachmentsOnly ? ["md"] : formats,
+  );
+  signal?.throwIfAborted();
   const data = {
     ...conversation,
     warnings: [...(conversation.warnings || [])],
@@ -102,7 +110,9 @@ export async function prepareExport(
     const path = `assets/${String(Object.keys(archive).length + 1).padStart(3, "0")}-${name}`;
     if (offline && !forPrint) archive[path] = bytes;
     const result = {
-      localPath: forPrint ? dataURL : path,
+      localPath: forPrint
+        ? dataURL
+        : path.split("/").map(encodeURIComponent).join("/"),
       bytes: bytes.length,
       filename: name,
     };
@@ -184,19 +194,43 @@ export async function prepareExport(
   }
   data.warnings = [...new Set(data.warnings)];
   const markdown = formatConversation(data, includeThinking);
+  const documents = attachmentsOnly
+    ? {}
+    : renderDocuments(data, markdown, chosenFormats, {
+        includeThinking,
+        windowObject,
+        exportedAt,
+      });
   const hasAssets = manifest.length > 0;
   const zip =
-    offline && !forPrint && hasAssets
+    !forPrint && (chosenFormats.length > 1 || (offline && hasAssets))
       ? zipSync(
           {
-            ...(!attachmentsOnly ? { "对话.md": strToU8(markdown) } : {}),
-            "附件清单.json": strToU8(JSON.stringify(manifest, null, 2)),
+            ...Object.fromEntries(
+              Object.entries(documents).map(([format, content]) => [
+                `对话.${format}`,
+                strToU8(content),
+              ]),
+            ),
+            ...(hasAssets
+              ? { "附件清单.json": strToU8(JSON.stringify(manifest, null, 2)) }
+              : {}),
             ...archive,
           },
           { level: 0 },
         )
       : null;
-  return { markdown, zip, manifest, warnings: data.warnings };
+  const extension = chosenFormats[0];
+  return {
+    markdown,
+    documents,
+    content: documents[extension],
+    extension,
+    mime: exportFormats[extension].mime,
+    zip,
+    manifest,
+    warnings: data.warnings,
+  };
 }
 
 /** One selected batch = one browser download, including a readable failure list. */

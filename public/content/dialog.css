@@ -48,7 +48,13 @@ dialog::backdrop {
 .shell {
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  /* The inner layout must obey the dialog's pixel cap as well as its viewport cap. */
+  max-height: inherit;
+}
+.shell > header,
+.shell > .status,
+.shell > footer {
+  flex: 0 0 auto;
 }
 header {
   display: flex;
@@ -121,6 +127,8 @@ input[type="number"] {
   width: 72px;
 }
 .body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   padding: 0 24px 20px;
   scrollbar-color: var(--line) var(--bg);
@@ -195,6 +203,26 @@ h3 {
   display: grid;
   gap: 12px;
   margin-top: 18px;
+}
+.formats {
+  border: 0;
+  padding: 0;
+  margin: 18px 0 0;
+  min-width: 0;
+}
+.formats legend {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.format-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+.formats p {
+  font-size: 14px;
+  margin-top: 10px;
 }
 .option {
   display: flex;
@@ -302,10 +330,16 @@ footer .count {
   footer button {
     flex: 1;
   }
+  footer .primary {
+    flex-basis: 100%;
+  }
   .status {
     padding: 10px 16px;
   }
   .round-list {
     max-height: 190px;
+  }
+  .format-options .option {
+    flex-basis: calc(50% - 12px);
   }
 }
