@@ -6,52 +6,64 @@ export function createButtons() {
   if (existing) return placeButtons(existing);
   const container = document.createElement("div");
   container.id = "ai-exporter-buttons";
+  container.className = "dsx-positioned-toolbar";
+  container.setAttribute("role", "group");
+  container.setAttribute("aria-label", "DeepSeek 导出工具");
   container.dataset.route = location.pathname;
   const button = document.createElement("button");
   button.type = "button";
   button.className = "ai-exporter-btn";
   button.id = "export-conversation-btn";
   button.setAttribute("aria-label", "导出对话");
-  button.innerHTML = `<img src="${chrome.runtime.getURL("icons/fish-48.png")}" alt="">导出`;
+  button.title = "导出对话";
+  button.innerHTML = `<img src="${chrome.runtime.getURL("icons/fish-48.png")}" alt=""><span>导出</span>`;
   button.onclick = () => openExportDialog();
   const files = document.createElement("button");
   files.type = "button";
   files.className = "ai-exporter-btn";
   files.id = "export-files-btn";
-  files.textContent = "附件";
+  files.innerHTML = `<svg class="dsx-file-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 12v4a4 4 0 0 0 8 0V7a3 3 0 0 0-6 0v9a1 1 0 0 0 2 0V8"/></svg><span>附件</span>`;
   files.setAttribute("aria-label", "导出对话内文件");
+  files.title = "导出对话内文件";
   files.onclick = () => openExportDialog("files");
   container.append(button, files);
+  document.body.append(container);
   return placeButtons(container);
 }
 
 function placeButtons(container) {
   container.dataset.route = location.pathname;
   syncTheme(container);
+  container.classList.remove("dsx-side-toolbar");
+  let composer;
   try {
-    const anchor = resolveComposerAnchor(
-      container.getBoundingClientRect().width || 164,
-    );
-    if (anchor?.root) {
+    const size = container.getBoundingClientRect();
+    const anchor = resolveComposerAnchor(size.width || 164, size.height || 36);
+    composer = anchor?.composer;
+    if (anchor && anchor.mode !== "page") {
       container.classList.remove("dsx-page-toolbar");
-      container.classList.toggle("dsx-separate-row", !!anchor.separateRow);
-      if (
-        container.parentElement !== anchor.root ||
-        container.nextElementSibling !== anchor.before
-      )
-        anchor.root.insertBefore(container, anchor.before);
-      if (container.getBoundingClientRect().height) return true;
+      container.classList.add("dsx-positioned-toolbar");
+      container.classList.toggle("dsx-side-toolbar", anchor.mode === "side");
+      container.dataset.placement = anchor.mode;
+      container.style.left = anchor.x + "px";
+      container.style.top = anchor.y + "px";
+      if (container.parentElement !== document.body)
+        document.body.append(container);
+      return composer;
     }
   } catch {
     /* A normal document row is safer than covering the page's own controls. */
   }
-  container.classList.remove("dsx-separate-row");
+  container.classList.remove("dsx-positioned-toolbar");
   container.classList.add("dsx-page-toolbar");
+  container.dataset.placement = "page";
+  container.style.removeProperty("left");
+  container.style.removeProperty("top");
   const column = document.querySelector('main, [role="main"]') || document.body;
   if (
     container.parentElement !== column ||
     column.firstElementChild !== container
   )
     column.prepend(container);
-  return true;
+  return composer;
 }

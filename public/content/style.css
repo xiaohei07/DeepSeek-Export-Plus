@@ -1,12 +1,13 @@
 #ai-exporter-buttons {
   display: inline-flex;
+  box-sizing: border-box;
+  width: max-content;
   flex-shrink: 0;
   white-space: nowrap;
   align-self: center;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
-  margin-right: 8px;
+  margin: 0;
   color: var(--fg, #202124);
   background: var(--bg, #fff);
   border-radius: 10px;
@@ -16,7 +17,9 @@
     sans-serif;
   z-index: 1000;
 }
-#ai-exporter-buttons.dsx-separate-row,
+#ai-exporter-buttons.dsx-positioned-toolbar {
+  position: fixed;
+}
 #ai-exporter-buttons.dsx-page-toolbar {
   display: flex;
   width: max-content;
@@ -55,4 +58,29 @@
   width: 24px;
   height: 24px;
   object-fit: contain;
+}
+#ai-exporter-buttons .dsx-file-icon {
+  display: none;
+  width: 20px;
+  height: 20px;
+}
+#ai-exporter-buttons.dsx-side-toolbar {
+  flex-direction: column;
+  width: 24px;
+  padding: 0;
+}
+#ai-exporter-buttons.dsx-side-toolbar .ai-exporter-btn {
+  width: 24px;
+  height: 32px;
+  padding: 0;
+}
+#ai-exporter-buttons.dsx-side-toolbar span {
+  display: none;
+}
+#ai-exporter-buttons.dsx-side-toolbar .dsx-file-icon {
+  display: block;
+}
+#ai-exporter-buttons.dsx-side-toolbar img {
+  width: 20px;
+  height: 20px;
 }

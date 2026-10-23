@@ -284,95 +284,82 @@ export function urlMatchesFile(url, filename) {
 // ---------------- 结构解析器 ----------------
 
 /**
- * Find a horizontal control row with enough spare width for the toolbar.
- * Called again after hydration and route changes; avoid versioned class names.
- * The reference element is always a direct child of the returned parent.
- * @returns {{composer: Element, root?: Element, before?: Element, separateRow?: boolean}|null}
+ * Locate free space using visible controls, not their flex/grid wrappers.
+ * The toolbar lives outside the composer so it cannot change native layout.
  */
-export function resolveComposerAnchor(toolbarWidth = 164) {
-  // Prefer the currently visible composer; hashed classes can match stale or
-  // unrelated containers during route changes and hydration.
+export function resolveComposerAnchor(toolbarWidth = 164, toolbarHeight = 36) {
   const ta = pickComposerTextarea();
-  if (ta) {
-    const root = climbToComposerRoot(ta);
-    if (
-      root &&
-      root.querySelector('textarea, [contenteditable="true"]') &&
-      !root.querySelector(".ds-message")
-    ) {
-      const buttons = Array.from(
-        root.querySelectorAll(
-          'button, [role="button"], [class*="ds-icon-button"]',
-        ),
-      ).filter((b) => isVisible(b) && !isOwnUI(b) && !b.closest(".ds-message"));
-      const last =
-        buttons.find((b) =>
-          b.matches(
-            'button[type="submit"], [aria-label="发送"], [aria-label="Send"]',
-          ),
-        ) ||
-        buttons[buttons.length - 1] ||
-        null;
-      const upload = buttons.find((b) =>
-        /上传|添加附件|添加文件|upload|attach/i.test(
-          (b.getAttribute("aria-label") || "") +
-            " " +
-            (b.getAttribute("title") || ""),
-        ),
-      );
-      // The send control can live in a fixed 40px wrapper. Never insert into
-      // that wrapper: walk up to a horizontal row and account for its siblings.
-      for (
-        let before = upload || last;
-        before && before !== root;
-        before = before.parentElement
-      ) {
-        const row = before.parentElement;
-        if (row.contains(ta)) break;
-        const style = getComputedStyle(row);
-        if (
-          !/^(inline-)?flex$/.test(style.display) ||
-          style.flexDirection !== "row"
-        )
-          continue;
-        const children = [...row.children].filter(
-          (el) => !isOwnUI(el) && isVisible(el),
-        );
-        const number = (value) => parseFloat(value) || 0;
-        const occupied = children.reduce((sum, el) => {
-          const css = getComputedStyle(el);
-          return (
-            sum +
-            el.getBoundingClientRect().width +
-            number(css.marginLeft) +
-            number(css.marginRight)
-          );
-        }, 0);
-        const available =
-          row.clientWidth -
-          number(style.paddingLeft) -
-          number(style.paddingRight) -
-          occupied -
-          number(style.columnGap) * children.length;
-        if (available >= toolbarWidth + 8 && row.clientHeight >= 36)
-          return { composer: root, root: row, before };
-      }
-      // Reserve an actual row within the composer when its controls cannot fit
-      // another item. Floating above it would cover DeepSeek's scroll control.
-      let before = upload || last;
-      while (before?.parentElement && before.parentElement !== root)
-        before = before.parentElement;
-      const layout = getComputedStyle(root);
-      if (
-        before &&
-        !before.contains(ta) &&
-        !(/flex/.test(layout.display) && layout.flexDirection === "row")
-      )
-        return { composer: root, root, before, separateRow: true };
-      return { composer: root };
+  const composer = ta && climbToComposerRoot(ta);
+  if (!composer) return null;
+  const box = composer.getBoundingClientRect();
+  const controls = [
+    ...composer.querySelectorAll(
+      'button, [role="button"], [tabindex], [class*="ds-icon-button"], .ds-button',
+    ),
+  ].filter((el) => isVisible(el) && !isOwnUI(el));
+  const rects = controls
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.top >= box.top && r.bottom <= box.bottom + 1);
+  // Lowest native row: ignore the scroll-to-bottom button above the composer.
+  const last = rects.sort(
+    (a, b) => b.bottom - a.bottom || b.right - a.right,
+  )[0];
+  if (last) {
+    const y = (last.top + last.bottom - toolbarHeight) / 2;
+    const text = ta.getBoundingClientRect();
+    // Never place over the text input, including contenteditable variants.
+    const obstacles = [...rects, text]
+      .filter((r) => r.top < y + toolbarHeight && r.bottom > y)
+      .sort((a, b) => a.left - b.left);
+    let left = Math.max(8, box.left + 12);
+    const right = Math.min(innerWidth - 8, box.right - 12);
+    const gaps = [];
+    for (const r of obstacles) {
+      const end = Math.min(right, r.left - 8);
+      if (end > left) gaps.push([left, end]);
+      left = Math.max(left, r.right + 8);
     }
+    if (left < right) gaps.push([left, right]);
+    const center = (box.left + box.right) / 2;
+    const positions = gaps
+      .filter(([a, b]) => b - a >= toolbarWidth)
+      .map(([a, b]) =>
+        Math.max(a, Math.min(center - toolbarWidth / 2, b - toolbarWidth)),
+      )
+      .sort(
+        (a, b) =>
+          Math.abs(a + toolbarWidth / 2 - center) -
+          Math.abs(b + toolbarWidth / 2 - center),
+      );
+    if (positions.length && y >= 0 && y + toolbarHeight <= innerHeight)
+      return { composer, mode: "row", x: positions[0], y };
   }
-  return null;
+  // A small vertical pair fits the outer gutter without stealing composer space.
+  const sideWidth = 24,
+    sideHeight = 68;
+  const y = Math.max(
+    8,
+    Math.min(
+      (box.top + box.bottom - sideHeight) / 2,
+      innerHeight - sideHeight - 8,
+    ),
+  );
+  if (innerWidth - box.right >= sideWidth)
+    return {
+      composer,
+      mode: "side",
+      x: Math.min(box.right + 8, innerWidth - sideWidth),
+      y,
+    };
+  if (box.left >= sideWidth)
+    return {
+      composer,
+      mode: "side",
+      x: Math.max(0, box.left - sideWidth - 8),
+      y,
+    };
+  // Edge-to-edge composers have no safe gutter. Keep the input untouched.
+  return { composer, mode: "page" };
 }
 
 function pickComposerTextarea() {
