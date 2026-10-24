@@ -1,3 +1,4 @@
+import { acceptPrivacy } from "./consent-helper.mjs";
 // Isolated Chromium with synthetic fixtures. No user browser profile or login.
 import { chromium } from "playwright";
 import { readFile, writeFile, mkdir, mkdtemp } from "node:fs/promises";
@@ -99,6 +100,7 @@ for (let i = 0; i < 3; i++)
     },
   );
 try {
+  await acceptPrivacy(ctx);
   const page = await ctx.newPage();
   const downloads = await watchDownloads(ctx, page, "tmp/downloads");
   const nextDownload = (target) => downloads.next(target);

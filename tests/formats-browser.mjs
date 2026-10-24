@@ -1,3 +1,4 @@
+import { acceptPrivacy } from "./consent-helper.mjs";
 import { chromium } from "playwright";
 import {
   readFile,
@@ -93,6 +94,7 @@ const messages = [
   },
 ];
 try {
+  await acceptPrivacy(ctx);
   await ctx.route("https://files.deepseeksvc.com/**", (r) => {
     reads++;
     return r.fulfill({ contentType: "image/png", body: mascot });

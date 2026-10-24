@@ -1,3 +1,4 @@
+import { acceptPrivacy } from "./consent-helper.mjs";
 // Optional private sample replay: node tests/replay.mjs <share-json> <attachment-directory>
 // Input captures and output artifacts are ignored by Git and never uploaded.
 import { chromium } from "playwright";
@@ -45,6 +46,7 @@ const ctx = await chromium.launchPersistentContext(
 const errors = [];
 ctx.on("page", (p) => p.on("pageerror", (e) => errors.push(e.message)));
 try {
+  await acceptPrivacy(ctx);
   const page = await ctx.newPage();
   const downloads = await watchDownloads(ctx, page, "tmp/replay-downloads");
   await ctx.route("https://files.deepseeksvc.com/**", (route) => {

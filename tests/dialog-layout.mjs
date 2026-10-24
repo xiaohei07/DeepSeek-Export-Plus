@@ -1,3 +1,4 @@
+import { acceptPrivacy } from "./consent-helper.mjs";
 import { chromium } from "playwright";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -18,6 +19,7 @@ const ctx = await chromium.launchPersistentContext(
   },
 );
 try {
+  await acceptPrivacy(ctx);
   const page = await ctx.newPage();
   const messages = Array.from({ length: 6 }, (_, i) => ({
     message_id: i + 1,

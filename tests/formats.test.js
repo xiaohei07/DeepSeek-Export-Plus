@@ -167,6 +167,11 @@ test("multi-format ZIP fetches shared assets once, handles encoded filenames and
   const path = json.rounds[0].messages[0].attachments[0].path;
   assert.ok(files[decodeURIComponent(path)]);
   assert.ok(path.includes("%23"));
+  assert.equal(
+    json.rounds[0].messages[0].attachments[0].localPath,
+    decodeURIComponent(path),
+  );
+  assert.ok(strFromU8(files["对话.txt"]).includes(decodeURIComponent(path)));
   const doc = new JSDOM(strFromU8(files["对话.html"])).window.document;
   assert.equal(doc.querySelector("img").getAttribute("src"), path);
   assert.equal(data.messages[2].attachments[0].localPath, undefined);
@@ -231,4 +236,27 @@ test("invalid formats and aborted tasks fail before reading attachments", async 
     { name: "AbortError" },
   );
   assert.equal(reads, 0);
+});
+
+test("extension invalidation stops attachment export rather than recording an ordinary file failure", async () => {
+  await assert.rejects(
+    prepareExport(
+      {
+        messages: [
+          {
+            role: "user",
+            content: "test",
+            attachments: [{ filename: "中文.txt", url: "fixture" }],
+          },
+        ],
+      },
+      {
+        offline: true,
+        read: async () => {
+          throw new Error("Extension context invalidated.");
+        },
+      },
+    ),
+    /Extension context invalidated/,
+  );
 });

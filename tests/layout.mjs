@@ -1,3 +1,4 @@
+import { acceptPrivacy } from "./consent-helper.mjs";
 // Reproduce the narrow send-button wrapper from the reported composer layout.
 import { chromium } from "playwright";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
@@ -20,6 +21,7 @@ const context = await chromium.launchPersistentContext(
 );
 const results = [];
 try {
+  await acceptPrivacy(context);
   const page = await context.newPage();
   await page.bringToFront();
   await page.route("https://chat.deepseek.com/**", (route) =>
@@ -244,7 +246,7 @@ try {
     .locator('[contenteditable="true"]')
     .evaluate((el) => (el.style.height = "250px"));
   await page.waitForFunction(aligned);
-  // No side gutter: fall back to the conversation header without input reflow.
+  // No side gutter: use the independent dock without input reflow.
   await page.evaluate(() => {
     const form = document.getElementById("composer");
     form.style.width = "100%";
@@ -254,7 +256,7 @@ try {
   await page.waitForFunction(
     () =>
       document.getElementById("ai-exporter-buttons").dataset.placement ===
-      "page",
+      "dock",
   );
   assert.equal(await page.locator("#composer #ai-exporter-buttons").count(), 0);
   await writeFile(
