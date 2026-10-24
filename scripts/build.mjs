@@ -35,6 +35,55 @@ await build({
 });
 await build({
   ...common,
+  entryPoints: [resolve(root, "public/export/binary.js")],
+  outfile: resolve(dist, "export/binary.js"),
+  format: "esm",
+  plugins: [
+    {
+      name: "embedded-math-fonts",
+      setup(builder) {
+        builder.onResolve({ filter: /^dsx:math-css$/ }, () => ({
+          path: "math-css",
+          namespace: "math",
+        }));
+        builder.onLoad({ filter: /.*/, namespace: "math" }, async () => {
+          let css = (
+            await readFile(
+              resolve(root, "node_modules/katex/dist/katex.min.css"),
+              "utf8",
+            )
+          ).replace(
+            /,url\([^)]*\.(?:woff|ttf)\) format\("(?:woff|truetype)"\)/g,
+            "",
+          );
+          for (const [, file] of [
+            ...css.matchAll(/url\((fonts\/[^)]+\.woff2)\)/g),
+          ]) {
+            const bytes = await readFile(
+              resolve(root, "node_modules/katex/dist", file),
+            );
+            css = css.replaceAll(
+              `url(${file})`,
+              `url(data:font/woff2;base64,${bytes.toString("base64")})`,
+            );
+          }
+          return {
+            contents: `export default ${JSON.stringify(css)}`,
+            loader: "js",
+          };
+        });
+      },
+    },
+  ],
+});
+await build({
+  ...common,
+  entryPoints: [resolve(root, "public/privacy/index.js")],
+  outdir: resolve(dist, "privacy"),
+  format: "esm",
+});
+await build({
+  ...common,
   entryPoints: [resolve(root, "public/print/index.js")],
   outdir: resolve(dist, "print"),
   format: "esm",
@@ -56,7 +105,12 @@ await build({
     },
   ],
 });
-for (const name of ["manifest.json", "content/style.css", "print/index.html"])
+for (const name of [
+  "manifest.json",
+  "content/style.css",
+  "print/index.html",
+  "privacy/index.html",
+])
   await copyFile(resolve(root, "public", name), resolve(dist, name));
 await cp(resolve(root, "public/icons"), resolve(dist, "icons"), {
   recursive: true,

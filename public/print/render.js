@@ -21,7 +21,7 @@ function isLocalAsset(href) {
     return false;
   }
 }
-function createParser({ standalone = false } = {}) {
+function createParser({ standalone = false, mathOutput } = {}) {
   const parser = new Marked({
     gfm: true,
     breaks: false,
@@ -40,7 +40,7 @@ function createParser({ standalone = false } = {}) {
       throwOnError: false,
       trust: false,
       strict: "ignore",
-      output: standalone ? "mathml" : "htmlAndMathml",
+      output: mathOutput || (standalone ? "mathml" : "htmlAndMathml"),
     });
   parser.use({
     extensions: [
@@ -77,7 +77,7 @@ export function renderMarkdown(markdown, windowObject = window, options = {}) {
   const purifier = createDOMPurify(windowObject);
   // Conversation HTML is untrusted. Keep math markup, remove active content and forms.
   const cleaned = purifier.sanitize(createParser(options).parse(markdown), {
-    USE_PROFILES: { html: true, mathMl: true },
+    USE_PROFILES: { html: true, mathMl: true, svg: true },
     FORBID_TAGS: [
       "style",
       "input",

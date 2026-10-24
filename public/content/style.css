@@ -20,17 +20,6 @@
 #ai-exporter-buttons.dsx-positioned-toolbar {
   position: fixed;
 }
-#ai-exporter-buttons.dsx-page-toolbar {
-  display: flex;
-  width: max-content;
-  max-width: 100%;
-  margin: 0 0 8px auto;
-  align-self: flex-end;
-  grid-column: 1 / -1;
-}
-#ai-exporter-buttons.dsx-page-toolbar {
-  margin-bottom: 12px;
-}
 #ai-exporter-buttons .ai-exporter-btn {
   appearance: none;
   box-sizing: border-box;

@@ -120,7 +120,8 @@ export function blobDataURL(blob) {
     reader.readAsDataURL(blob);
   });
 }
-export async function readAttachment(file) {
+export async function readAttachment(file, { signal } = {}) {
+  signal?.throwIfAborted();
   if (!file.url) throw new Error("网页未提供下载地址");
   if (file.url.startsWith("https://files.deepseeksvc.com/")) {
     const result = await chrome.runtime.sendMessage({
@@ -134,7 +135,7 @@ export async function readAttachment(file) {
     return result.dataURL;
   }
   if (/^(blob:|data:image\/(png|jpeg|gif|webp);base64,)/i.test(file.url)) {
-    const response = await fetch(file.url);
+    const response = await fetch(file.url, { signal });
     const blob = await response.blob();
     if (blob.size > 40 * 1024 * 1024)
       throw new Error("文件超过 40 MB，请单独下载");
@@ -143,7 +144,9 @@ export async function readAttachment(file) {
   // Ordinary web images retain their original link if the server disallows CORS.
   const response = await fetch(file.url, {
     credentials: "omit",
-    signal: AbortSignal.timeout(20000),
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(20000)])
+      : AbortSignal.timeout(20000),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const blob = await response.blob();

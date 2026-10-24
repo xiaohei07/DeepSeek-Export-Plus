@@ -1,12 +1,18 @@
 import { marked } from "marked";
 import { renderMarkdown } from "../print/render.js";
 import { conversationRounds, documentTitle } from "./conversation.js";
+import { readableAssetPath } from "./assetPaths.js";
 
 export const exportFormats = Object.freeze({
   md: { label: "Markdown", mime: "text/markdown;charset=utf-8" },
   html: { label: "HTML", mime: "text/html;charset=utf-8" },
   txt: { label: "TXT", mime: "text/plain;charset=utf-8" },
   json: { label: "JSON", mime: "application/json;charset=utf-8" },
+  docx: {
+    label: "Word",
+    mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  },
+  png: { label: "PNG", mime: "image/png" },
 });
 
 export function validateFormats(formats) {
@@ -36,9 +42,9 @@ export function markdownToText(markdown) {
       .map((token) => {
         switch (token.type) {
           case "link":
-            return `${inline(token.tokens) || token.href} (${token.href})`;
+            return `${inline(token.tokens) || token.href} (${readableAssetPath(token.href)})`;
           case "image":
-            return `[图片：${token.text || "图片"}] (${token.href})`;
+            return `[图片：${token.text || "图片"}] (${readableAssetPath(token.href)})`;
           case "br":
             return "\n";
           default:
@@ -149,7 +155,10 @@ export function conversationJSON(
               isImage: !!file.isImage,
               imagePreview: !!file.preview,
               ...(file.localPath
-                ? { path: text(file.localPath) }
+                ? {
+                    path: text(file.localPath),
+                    localPath: readableAssetPath(file.localPath),
+                  }
                 : { url: text(file.url) }),
               ...(file.error ? { error: text(file.error) } : {}),
             })),
@@ -176,7 +185,7 @@ export function conversationJSON(
   );
 }
 
-const htmlStyle = `
+export const htmlStyle = `
 :root{color-scheme:light;--ink:#242b36;--muted:#465467;--line:#dce2ea;--soft:#f4f6fa;--link:#2357ae}
 *{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:16px/1.8 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
 main{max-width:880px;margin:48px auto 80px;padding:0 28px;overflow-wrap:anywhere}
@@ -209,6 +218,8 @@ export function renderDocuments(conversation, markdown, formats, options = {}) {
     json: () => conversationJSON(conversation, options),
   };
   return Object.fromEntries(
-    validateFormats(formats).map((format) => [format, renderers[format]()]),
+    validateFormats(formats)
+      .filter((format) => renderers[format])
+      .map((format) => [format, renderers[format]()]),
   );
 }

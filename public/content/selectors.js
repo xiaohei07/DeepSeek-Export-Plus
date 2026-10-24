@@ -17,7 +17,16 @@
 
 /** 插件自身 UI 的根节点，所有查询都要排除它们 */
 export const OWN_UI_SELECTOR =
-  "#ai-exporter-buttons, #file-export-modal, .ai-exporter-toast";
+  "#ai-exporter-buttons, #file-export-modal, #dsx-dialog-host, #dsx-runtime-notice, .ai-exporter-toast";
+
+export const NATIVE_DIALOG_SELECTOR =
+  '[role="dialog"], [aria-modal="true"], .ds-modal, [popover]:popover-open';
+
+export function hasNativeDialog() {
+  return [...document.querySelectorAll(NATIVE_DIALOG_SELECTOR)].some(
+    (el) => !isOwnUI(el) && isVisible(el),
+  );
+}
 
 export const ds = {
   // ----- 消息 -----
@@ -359,7 +368,7 @@ export function resolveComposerAnchor(toolbarWidth = 164, toolbarHeight = 36) {
       y,
     };
   // Edge-to-edge composers have no safe gutter. Keep the input untouched.
-  return { composer, mode: "page" };
+  return { composer, mode: "dock" };
 }
 
 function pickComposerTextarea() {
@@ -367,7 +376,8 @@ function pickComposerTextarea() {
   let bestArea = 0;
   const nodes = document.querySelectorAll('textarea, [contenteditable="true"]');
   for (const el of nodes) {
-    if (isOwnUI(el) || !isVisible(el)) continue;
+    if (isOwnUI(el) || el.closest(NATIVE_DIALOG_SELECTOR) || !isVisible(el))
+      continue;
     const r = el.getBoundingClientRect();
     const area = r.width * r.height;
     if (area > bestArea) {

@@ -45,7 +45,7 @@ export async function prepareSingleAttachment(
 ) {
   signal?.throwIfAborted();
   onProgress(`正在下载：${file.filename}…`);
-  const dataURL = await read(file);
+  const dataURL = await read(file, { signal });
   signal?.throwIfAborted();
   const { type, bytes } = decode(dataURL);
   if (file.isImage && !/^image\/(png|jpeg|webp|gif)$/.test(type))
@@ -87,6 +87,7 @@ export async function prepareExport(
     })),
   };
   const archive = {},
+    embeddedAssets = {},
     manifest = [],
     cached = new Map();
   let total = 0,
@@ -116,6 +117,7 @@ export async function prepareExport(
       bytes: bytes.length,
       filename: name,
     };
+    if (file.isImage) embeddedAssets[result.localPath] = dataURL;
     cached.set(file.url, result);
     manifest.push({
       originalFilename: file.filename,
@@ -135,6 +137,7 @@ export async function prepareExport(
         file.localPath = loaded.localPath;
       } catch (error) {
         signal?.throwIfAborted();
+        if (/extension context invalidated/i.test(error.message)) throw error;
         file.error = error.message;
         manifest.push({
           originalFilename: file.filename,
@@ -168,6 +171,8 @@ export async function prepareExport(
               );
             } catch (error) {
               signal?.throwIfAborted();
+              if (/extension context invalidated/i.test(error.message))
+                throw error;
               data.warnings.push(`正文图片未保存：${error.message}`);
             }
           }
@@ -201,17 +206,42 @@ export async function prepareExport(
         windowObject,
         exportedAt,
       });
+  const documentFiles = Object.fromEntries(
+    Object.entries(documents).map(([format, content]) => [
+      `对话.${format}`,
+      strToU8(content),
+    ]),
+  );
+  if (
+    !attachmentsOnly &&
+    chosenFormats.some((format) => ["docx", "png"].includes(format))
+  ) {
+    onProgress("正在准备本地Word/图片排版…");
+    const { renderBinaryDocuments } = await import(
+      chrome.runtime.getURL("export/binary.js")
+    );
+    const binary = await renderBinaryDocuments({
+      markdown,
+      title: data.title || "DeepSeek 对话记录",
+      formats: chosenFormats,
+      assets: embeddedAssets,
+      signal,
+      onProgress,
+    });
+    Object.assign(documentFiles, binary);
+    if (binary["对话.docx"]) documents.docx = binary["对话.docx"];
+    if (binary["对话.png"]) documents.png = binary["对话.png"];
+  }
+  signal?.throwIfAborted();
   const hasAssets = manifest.length > 0;
   const zip =
-    !forPrint && (chosenFormats.length > 1 || (offline && hasAssets))
+    !forPrint &&
+    (chosenFormats.length > 1 ||
+      Object.keys(documentFiles).length > 1 ||
+      (offline && hasAssets))
       ? zipSync(
           {
-            ...Object.fromEntries(
-              Object.entries(documents).map(([format, content]) => [
-                `对话.${format}`,
-                strToU8(content),
-              ]),
-            ),
+            ...documentFiles,
             ...(hasAssets
               ? { "附件清单.json": strToU8(JSON.stringify(manifest, null, 2)) }
               : {}),

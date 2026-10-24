@@ -1,7 +1,8 @@
-// MAIN world, document_start. Observe only responses the page already requested.
+// Registered only after consent. Observe only responses the page already requested.
 // No extra authenticated request, token, cookie, header or persistent storage access.
 const key = Symbol.for("deepseek-export-plus.history");
 if (!globalThis[key]) {
+  let active = true;
   let session = "",
     messages = new Map();
   const current = () => location.pathname.match(/\/chat\/([^/]+)/)?.[1] || "";
@@ -39,7 +40,7 @@ if (!globalThis[key]) {
     }
   };
   const accept = (id, json) => {
-    if (!id || id !== current()) return;
+    if (!active || !id || id !== current()) return;
     const data = json?.data?.biz_data;
     if (
       json?.code !== 0 ||
@@ -96,21 +97,36 @@ if (!globalThis[key]) {
     }
   };
   Object.defineProperty(globalThis, key, {
+    configurable: true,
     value: {
       read(id) {
-        return current() === session ? messages.get(String(id)) || null : null;
+        return active && current() === session
+          ? messages.get(String(id)) || null
+          : null;
+      },
+      stop() {
+        active = false;
+        messages.clear();
+        session = "";
+        if (globalThis.fetch === wrappedFetch) globalThis.fetch = originalFetch;
+        if (XMLHttpRequest.prototype.open === wrappedOpen)
+          XMLHttpRequest.prototype.open = open;
+        if (XMLHttpRequest.prototype.send === wrappedSend)
+          XMLHttpRequest.prototype.send = send;
+        delete globalThis[key];
       },
     },
   });
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = function (...args) {
+  const wrappedFetch = (globalThis.fetch = function (...args) {
+    if (!active) return Reflect.apply(originalFetch, this, args);
     invalidateIfChanging(args[0]);
     const id = isHistory(args[0]);
     const promise = Reflect.apply(originalFetch, this, args);
     if (id)
       promise
         .then((response) => {
-          if (response.ok)
+          if (active && response.ok)
             response
               .clone()
               .text()
@@ -121,24 +137,26 @@ if (!globalThis[key]) {
         })
         .catch(() => {});
     return promise;
-  };
+  });
   // DeepSeek releases may use either fetch or XMLHttpRequest for history.
   const requests = new WeakMap(),
     open = XMLHttpRequest.prototype.open,
     send = XMLHttpRequest.prototype.send;
-  XMLHttpRequest.prototype.open = function (...args) {
+  const wrappedOpen = (XMLHttpRequest.prototype.open = function (...args) {
+    if (!active) return Reflect.apply(open, this, args);
     invalidateIfChanging(String(args[1]));
     requests.set(this, isHistory(String(args[1])));
     return Reflect.apply(open, this, args);
-  };
-  XMLHttpRequest.prototype.send = function (...args) {
+  });
+  const wrappedSend = (XMLHttpRequest.prototype.send = function (...args) {
+    if (!active) return Reflect.apply(send, this, args);
     const id = requests.get(this);
     if (id)
       this.addEventListener(
         "load",
         () => {
           try {
-            if (this.status !== 200) return;
+            if (!active || this.status !== 200) return;
             if (this.responseType === "json") accept(id, this.response);
             else if (
               (!this.responseType || this.responseType === "text") &&
@@ -152,5 +170,5 @@ if (!globalThis[key]) {
         { once: true },
       );
     return Reflect.apply(send, this, args);
-  };
+  });
 }

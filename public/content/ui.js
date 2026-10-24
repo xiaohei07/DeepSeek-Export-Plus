@@ -1,5 +1,5 @@
 import { openExportDialog, syncTheme } from "./dialog.js";
-import { resolveComposerAnchor } from "./selectors.js";
+import { resolveComposerAnchor, hasNativeDialog } from "./selectors.js";
 
 export function createButtons() {
   const existing = document.getElementById("ai-exporter-buttons");
@@ -34,14 +34,16 @@ export function createButtons() {
 function placeButtons(container) {
   container.dataset.route = location.pathname;
   syncTheme(container);
+  // A native share/settings dialog is not the conversation composer. Keep our
+  // floating controls out of its way, then restore the normal row after closing.
+  container.style.visibility = hasNativeDialog() ? "hidden" : "visible";
   container.classList.remove("dsx-side-toolbar");
   let composer;
   try {
     const size = container.getBoundingClientRect();
     const anchor = resolveComposerAnchor(size.width || 164, size.height || 36);
     composer = anchor?.composer;
-    if (anchor && anchor.mode !== "page") {
-      container.classList.remove("dsx-page-toolbar");
+    if (anchor && anchor.mode !== "dock") {
       container.classList.add("dsx-positioned-toolbar");
       container.classList.toggle("dsx-side-toolbar", anchor.mode === "side");
       container.dataset.placement = anchor.mode;
@@ -52,18 +54,16 @@ function placeButtons(container) {
       return composer;
     }
   } catch {
-    /* A normal document row is safer than covering the page's own controls. */
+    /* Keep a small independent dock when the site's composer is unavailable. */
   }
-  container.classList.remove("dsx-positioned-toolbar");
-  container.classList.add("dsx-page-toolbar");
-  container.dataset.placement = "page";
-  container.style.removeProperty("left");
-  container.style.removeProperty("top");
-  const column = document.querySelector('main, [role="main"]') || document.body;
-  if (
-    container.parentElement !== column ||
-    column.firstElementChild !== container
-  )
-    column.prepend(container);
+  // Refresh, SPA replacement and read-only share pages may have no composer.
+  // Never prepend into the site's layout (the previous top-right fallback).
+  container.classList.add("dsx-positioned-toolbar", "dsx-side-toolbar");
+  container.dataset.placement = "dock";
+  container.style.left = "8px";
+  container.style.top =
+    Math.max(8, Math.min(innerHeight * 0.6, innerHeight - 76)) + "px";
+  if (container.parentElement !== document.body)
+    document.body.append(container);
   return composer;
 }

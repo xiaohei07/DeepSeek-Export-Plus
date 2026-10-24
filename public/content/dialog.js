@@ -1,5 +1,12 @@
 import styles from "./dialog.css";
+import { consentKey, hasConsent, requireConsent } from "../privacy/consent.js";
 import { exportFormats } from "./formats.js";
+import {
+  runExtensionAction,
+  isContextInvalidated,
+  handleContextInvalidation,
+  onContextInvalidated,
+} from "./runtime.js";
 import { extractConversationData } from "./extractor.js";
 import {
   prepareExport,
@@ -69,11 +76,12 @@ export function saveDownload(content, filename, mime) {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
-export async function printPreview(markdown, title) {
+export async function printPreview(markdown, title, files = []) {
   const response = await chrome.runtime.sendMessage({
     type: "OPEN_PRINT_PREVIEW",
     markdown,
     title,
+    files,
   });
   if (!response?.success) throw new Error(response?.error || "无法打开PDF预览");
 }
@@ -93,12 +101,18 @@ function displaySize(value) {
 }
 
 export async function openExportDialog(mode = "conversation") {
+  return runExtensionAction(() => createExportDialog(mode));
+}
+async function createExportDialog(mode) {
+  if (!(await requireConsent())) return;
   if (document.getElementById("dsx-dialog-host")) return;
   const trigger = document.activeElement,
     host = document.createElement("div");
   host.id = "dsx-dialog-host";
   const root = host.attachShadow({ mode: "open" });
   const controller = new AbortController();
+  let data,
+    thinkingLoaded = false;
   root.innerHTML = `<style>${styles}</style><dialog aria-labelledby="dialog-title"><div class="shell">
     <header><img class="mascot" src="${chrome.runtime.getURL("icons/fish-128.png")}" alt="小肥鱼"><div class="intro"><h2 id="dialog-title">${mode === "files" ? "带走对话里的文件" : "导出这段对话"}</h2><p id="speech">我来整理，你来决定带走哪些内容。</p></div><button class="close" aria-label="关闭">×</button></header>
     <div class="body"><div class="loading"><div class="loading-line"></div><p>正在读取对话。长对话需要滚动加载，请稍等片刻。</p></div><div id="settings" hidden></div></div>
@@ -117,11 +131,28 @@ export async function openExportDialog(mode = "conversation") {
     footer = root.querySelector("footer");
   const close = () => {
     controller.abort();
+    data = null;
+    try {
+      chrome.storage.onChanged.removeListener(consentChanged);
+    } catch {
+      /* Reloaded extension. */
+    }
+    unsubscribe();
     observer.disconnect();
     dialog.close();
     host.remove();
     if (trigger?.isConnected) trigger.focus();
   };
+  const unsubscribe = onContextInvalidated(close);
+  const consentChanged = (changes, area) => {
+    if (
+      area === "local" &&
+      changes[consentKey] &&
+      !hasConsent(changes[consentKey].newValue)
+    )
+      close();
+  };
+  chrome.storage.onChanged.addListener(consentChanged);
   root.querySelector(".close").onclick = close;
   dialog.addEventListener("cancel", (event) => {
     event.preventDefault();
@@ -144,14 +175,16 @@ export async function openExportDialog(mode = "conversation") {
     if (host.isConnected) status.textContent = text;
   };
   const fail = (error) => {
+    if (isContextInvalidated(error)) {
+      handleContextInvalidation();
+      return;
+    }
     if (!controller.signal.aborted) {
       status.textContent =
         "没有完成：" + error.message + "。可重试，或刷新页面后再导出。";
       status.classList.add("error");
     }
   };
-  let data,
-    thinkingLoaded = false;
   try {
     data = await extractConversationData(false, {
       onProgress: progress,
@@ -190,7 +223,12 @@ export async function openExportDialog(mode = "conversation") {
     mode === "files"
       ? "文件整理好了，勾选后就可以带走。"
       : "整理好了。整段保存，或者只选你需要的几轮。";
-  settings.innerHTML = `<div class="notice">${previewNote}</div>${
+  const shareExcelNote =
+    isSharedConversation(data) &&
+    files.some((file) => /\.(xlsx|xls)$/i.test(file.filename || ""))
+      ? '<div class="notice" id="share-excel-note">分享页可能无法提供Excel原文件。若网页也无法打开或下载，请从原chat导出；附件服务返回404时，插件无法恢复文件，失败原因会写入附件清单。</div>'
+      : "";
+  settings.innerHTML = `<p><button id="privacy">数据与隐私</button> · 在本机处理</p><div class="notice">${previewNote}</div>${shareExcelNote}${
     mode === "conversation"
       ? `<label class="title-label">${isSharedConversation(data) ? "文件名前缀（分享页正文标题固定为“DeepSeek 对话记录”）" : "文档标题"}<input type="text" id="title" maxlength="150"></label>
     <div class="row between"><h3>选择对话轮次</h3><button id="select-all">取消全选</button></div>
@@ -210,6 +248,11 @@ export async function openExportDialog(mode = "conversation") {
       : `<div class="row between"><h3>对话附件</h3><button id="select-all">取消全选</button></div><div class="file-list"></div><p>选择1个文件直接下载，选择多个文件打包为ZIP。</p>`
   }`;
   const title = root.querySelector("#title");
+  root.querySelector("#privacy").onclick = () =>
+    runExtensionAction(
+      () => chrome.runtime.sendMessage({ type: "OPEN_PRIVACY" }),
+      fail,
+    );
   if (title) title.value = documentTitle(data);
   const count = document.createElement("span");
   count.className = "count";
@@ -275,7 +318,11 @@ export async function openExportDialog(mode = "conversation") {
         formatChecks.forEach((check) => {
           check.checked = saved.includes(check.value);
         });
-    } catch {
+    } catch (error) {
+      if (isContextInvalidated(error)) {
+        handleContextInvalidation();
+        return;
+      }
       /* Optional preference storage must never prevent an export. */
     }
     if (controller.signal.aborted) return;
@@ -299,7 +346,7 @@ export async function openExportDialog(mode = "conversation") {
             ? `导出${exportFormats[formats[0]].label}`
             : "选择导出格式";
       root.querySelector("#format-hint").textContent = formats.length
-        ? "单选直接保存，多选打包为一个ZIP。HTML适合阅读，TXT适合纯文本，JSON便于后续处理。"
+        ? "单选直接保存，多选打包ZIP。Word正文可编辑，公式为图片（替代文本保留LaTeX）；PNG长对话分图并打包。PDF仍通过下方按钮打印另存。"
         : "请至少选择一种格式。";
     }
     if (mode === "files" && actions[0])
@@ -311,9 +358,10 @@ export async function openExportDialog(mode = "conversation") {
     check.onchange = () => {
       update();
       if (selectedFormats().length)
-        chrome.storage.local
-          .set({ exportFormats: selectedFormats() })
-          .catch(() => {});
+        runExtensionAction(
+          () => chrome.storage.local.set({ exportFormats: selectedFormats() }),
+          () => {},
+        );
     };
   });
   root.querySelector("#select-all").onclick = () => {
@@ -348,6 +396,11 @@ export async function openExportDialog(mode = "conversation") {
       settings.inert = true;
       status.classList.remove("error");
       try {
+        if (!(await requireConsent())) {
+          close();
+          return;
+        }
+        controller.signal.throwIfAborted();
         if (location.href !== sourceURL)
           throw new Error("页面已切换，请关闭窗口后重新读取");
         if (
@@ -424,7 +477,9 @@ export async function openExportDialog(mode = "conversation") {
     action("复制Markdown", async () => {
       const result = await prepareExport(exportData(), {
         includeThinking: root.querySelector("#thinking").checked,
+        signal: controller.signal,
       });
+      controller.signal.throwIfAborted();
       await navigator.clipboard.writeText(result.markdown);
       progress("已复制Markdown。附件链接可能过期，长期保存建议导出ZIP。");
     });
@@ -434,6 +489,7 @@ export async function openExportDialog(mode = "conversation") {
       await printPreview(
         result.markdown,
         timestampedFilename(exportData().title),
+        exportData().messages.flatMap((message) => message.attachments || []),
       );
       progress(
         "PDF预览已打开。点击“打印 / 保存为PDF”，将目标打印机选择为“另存为PDF”。" +
