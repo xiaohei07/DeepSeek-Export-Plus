@@ -1,5 +1,7 @@
 # 审核入口与测试说明
 
+本页对应正式版2.3.0，用于商店审核备注。完整测试可使用[14种后缀附件的逐轮提示词](TEST-CONVERSATION.md)；下面的短示例适合快速复查。
+
 ## 先准备一条可以公开的示例
 
 建议维护者新建一段短对话，用于两家商店的审核。不要使用带私人附件、工作信息或临时下载地址的已有长对话。
@@ -24,9 +26,9 @@
 ```text
 DeepSeek Export Plus exports conversations from chat.deepseek.com. It is an independent community extension, not a DeepSeek product. The interface is in Simplified Chinese. It has no separate login, subscription or API key requirement. Access to DeepSeek itself follows that site's account and regional requirements.
 
-After installation, refresh a DeepSeek chat or share page. Click the small mascot's “导出” button near the conversation input, or at the top of the conversation when no input area is available. “附件” opens the attachment list. At narrow widths the controls may appear as icons beside the input.
+After installation, read the separate data disclosure page. Click 同意并启用导出 to enable processing or 暂不同意 to decline. No conversation is read or retained before consent. Then refresh a DeepSeek chat or share page. Click the small mascot's “导出” button near the conversation input, or at the top of the conversation when no input area is available. “附件” opens the attachment list. At narrow widths the controls may appear as icons beside the input.
 
-1. Open a completed two-round conversation. Click “导出” and select one round. Leave thinking unchecked and uncheck attachments. Export Markdown, HTML, TXT and JSON one at a time. Each selection should download one document; original round numbers are retained.
+1. Open a completed two-round conversation. Click “导出” and select one round. Leave thinking unchecked and uncheck attachments. Export Markdown, HTML, TXT, JSON, Word and PNG one at a time. Word text and tables are editable, while formulas are images with LaTeX alternative text. Long PNG output is split and zipped. Each selection should download one document; original round numbers are retained.
 2. Select two or more formats. One ZIP should contain the selected documents. Format preferences are remembered, while thinking remains off when the dialog is reopened.
 3. If the conversation contains thinking or search records, enable “包含思考过程与工具记录”. Available records should be included. Disable it and export again: thinking and tool records should be omitted, including the JSON reasoning field.
 4. Enable “附带图片与附件” and export HTML plus JSON. Extract the ZIP before opening its HTML. Saved images are loaded from the sibling assets folder, and attachments are shared across formats. Uploaded images may be DeepSeek previews rather than originals.
@@ -34,7 +36,9 @@ After installation, refresh a DeepSeek chat or share page. Click the small masco
 6. The “PDF” button at the bottom opens a local print preview. Use “打印 / 保存为PDF” to open the browser print dialog. PDF is not a direct export format and is not included in the multi-format ZIP.
 7. Repeat on the conversation's share page. Share document headings are fixed; regular chat titles can be edited. Download names include a timestamp to the second.
 
-Data handling: export conversion and ZIP creation are local. To restore chat history, the extension temporarily retains relevant history responses naturally received by the current page from page load, potentially before the export dialog opens. It does not send conversation content to the maintainer. Share data and attachments are fetched from DeepSeek; saving remote images may contact their original hosts. All executable code and print fonts are packaged, with no remote executable code.
+8. Open 数据与隐私 from the dialog or the extension options. Click 撤回同意并清理缓存. The export dialog closes, temporary history is cleared, and open PDF previews are cleared. Downloaded files remain under the user's control. Grant consent again and refresh to resume.
+
+Data handling: export conversion, DOCX/PNG rendering and ZIP creation are local. Only after consent, the extension temporarily retains relevant history responses naturally received by the current page from page load, potentially before the export dialog opens. It does not send conversation content to the maintainer. Share data and attachments are fetched from DeepSeek; saving remote images may contact their original hosts. All executable code and print fonts are packaged, with no remote executable code.
 
 Known limits: the extension cannot recover data that DeepSeek does not provide. Website changes, account-specific layouts, expired file URLs and image CORS restrictions can affect results. JSON is not an importable DeepSeek backup. The UI has not been localized into English.
 

@@ -1,0 +1,20 @@
+{
+  "marker": "DSX-JSON-04",
+  "fictional": true,
+  "items": [
+    {
+      "name": "纸飞机",
+      "quantity": 2
+    },
+    {
+      "name": "纸船",
+      "quantity": 3
+    },
+    {
+      "name": "纸风车",
+      "quantity": 5
+    }
+  ],
+  "expectedTotal": 10,
+  "end": "JSON-END"
+}

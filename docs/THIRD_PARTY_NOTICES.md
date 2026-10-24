@@ -11,6 +11,8 @@
 | Marked | Markdown 分块与 PDF 预览渲染 | MIT |
 | DOMPurify | 清理打印内容中的不安全 HTML | Apache-2.0 OR MPL-2.0 |
 | KaTeX | PDF 预览中的数学公式及本地字体 | MIT |
+| docx | 在浏览器生成DOCX段落、表格、链接和图片 | MIT |
+| html2canvas | 本地渲染对话PNG与Word公式图片 | MIT |
 | fflate | 将对话、图片与附件打包为 ZIP | MIT |
 
 调研了 [ShaoqiLiang/DeepSeek-Exporter](https://github.com/ShaoqiLiang/DeepSeek-Exporter) README 中的 React 数据提取、角色识别与长对话滚动方案。该项目为 AGPL-3.0；当前实现未复制其代码，继续使用原项目 MIT 许可。

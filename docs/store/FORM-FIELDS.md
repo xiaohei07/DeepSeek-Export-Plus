@@ -1,6 +1,6 @@
 # 上架后台逐字段填写表
 
-对应2.2.0，核对日期2026-10-24。以下建议根据当前manifest和数据处理实现整理，后台字段名可能调整。涉及身份和数据使用的声明需要维护者逐项核对后提交，不能整页盲选。
+对应正式版2.3.0；核对日期2026-10-24。以下建议根据当前manifest和数据处理实现整理，后台字段名可能调整。涉及身份和数据使用的声明需要维护者逐项核对后提交，不能整页盲选。
 
 ## 通用字段
 
@@ -9,7 +9,7 @@
 | 发布者 / Publisher | `07xiaohei` |
 | 支持邮箱 / Support email | `lazy07xiaohei@gmail.com` |
 | 名称 | `DeepSeek Export Plus · 网页对话导出` |
-| 版本 | `2.2.0`，由安装ZIP内的manifest读取；更换代码或内置图标后应递增版本 |
+| 版本 | `2.3.0`，由安装ZIP内的manifest读取；更换代码或内置图标后应递增版本 |
 | 界面语言 | 简体中文；目前没有英文界面 |
 | 分类 | 在后台现有选项中选择“生产力 / Productivity”或最接近的工具分类 |
 | 收费 | 免费，无付费功能、广告或导出次数收费 |
@@ -20,7 +20,7 @@
 | 单一用途 | 将用户当前打开的DeepSeek网页对话及其所选附件导出为本地文件，方便离线阅读、笔记编辑与个人存档。 |
 | 使用远程代码 | **No / 不使用**。脚本、库和打印字体均随包提供；下载对话JSON、图片和附件是读取数据，不执行下载的代码 |
 
-安装包使用GitHub发行页下载的`DeepSeek-Export-Plus-2.2.0.zip`，根目录直接包含`manifest.json`。**不要上传源码ZIP或store-materials.zip。**当前图标依据仍待处理，详见[维护者清单](OWNER-CHECKLIST.md)。
+安装包使用GitHub发行页下载的`DeepSeek-Export-Plus-2.3.0.zip`，根目录直接包含`manifest.json`。**不要上传源码ZIP或store-materials.zip。**图标按维护者确认保留，详见[维护者清单](OWNER-CHECKLIST.md)。
 
 Chrome名称与短描述主要来自manifest；Edge也可能将这两个字段设为只读。因此英文介绍不等于可以在后台任意改包内名称，更不表示已支持英文界面。无需为首次上架改动已确认的中文产品名称。
 
@@ -32,7 +32,7 @@ Runs packaged functions in the current DeepSeek page to read scoped message fiel
 
 ### storage
 
-Stores export-format preferences in chrome.storage.local and temporary PDF preview data in chrome.storage.session. Conversation content is not stored in persistent extension storage. Preview data is removed when its tab closes, and older previews are cleaned on later preview creation or near the storage limit.
+Stores the user's data-processing consent choice and export-format preferences in chrome.storage.local and temporary PDF preview data in chrome.storage.session. Conversation content is not stored in persistent extension storage. Preview data is removed when its tab closes, and older previews are cleaned on later preview creation or near the storage limit.
 
 ### clipboardWrite
 
@@ -40,7 +40,7 @@ Writes the generated Markdown to the clipboard only when the user clicks Copy Ma
 
 ### Host permissions
 
-https://chat.deepseek.com/*: Adds export controls, reads the current conversation and observes relevant history responses naturally received by that page. Shared conversations are obtained from DeepSeek's share API. It does not read global browser history, cookies or authentication headers.
+https://chat.deepseek.com/*: Adds export controls. Only after explicit consent, it reads the current conversation and observes relevant history responses naturally received by that page. Consent can be withdrawn in the extension options, which stops observation and clears temporary conversation and preview data. Shared conversations are obtained from DeepSeek's share API. It does not read global browser history, cookies or authentication headers.
 
 https://files.deepseeksvc.com/*: Retrieves document files and image previews selected for export. Requests are limited in code to the DeepSeek file API and omit authentication credentials.
 
@@ -50,7 +50,7 @@ No remote code is executed. All executable JavaScript, libraries and print fonts
 
 ## 数据使用怎么选
 
-**本机读取、处理或暂存也要披露。**本项目没有维护者服务器，不代表没有处理用户数据。下面是根据2.2.0实现给出的分类建议，最终按两家后台当前定义核对。[Chrome数据字段](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy)、[本地数据处理说明](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq)
+**本机读取、处理或暂存也要披露。**本项目没有维护者服务器，不代表没有处理用户数据。下面是根据2.3.0实现给出的分类建议，最终按两家后台当前定义核对。[Chrome数据字段](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy)、[本地数据处理说明](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq)
 
 | 类型 | 当前功能及建议 |
 | --- | --- |
@@ -65,13 +65,13 @@ No remote code is executed. All executable JavaScript, libraries and print fonts
 
 审核补充说明可用：
 
-> Conversation content, the current conversation URL and selected attachments are processed locally for export. Relevant chat-history responses are temporarily retained in page memory from page load, before the export dialog may be opened. The maintainer does not receive conversation content. Downloads contact DeepSeek or the original image host. The extension does not read cookies, authentication headers or global browser history, and does not sell data or use it for advertising, credit decisions or model training.
+> Conversation content, the current conversation URL and selected attachments are processed locally for export. After explicit consent, relevant chat-history responses are temporarily retained in page memory from page load, before the export dialog may be opened. No conversation is read or retained before consent. Revocation stops processing and clears temporary history and PDF previews. The maintainer does not receive conversation content. Downloads contact DeepSeek or the original image host. The extension does not read cookies, authentication headers or global browser history, and does not sell data or use it for advertising, credit decisions or model training.
 
 ## 图像与搜索词
 
 | 上传项 | 文件及使用说明 |
 | --- | --- |
-| Chrome图标 | `images/icon-128.png`，128×128；当前图标来源尚需解决 |
+| Chrome图标 | `images/icon-128.png`，128×128；按维护者确认继续使用 |
 | Edge图标 | `images/icon-256.png`，256×256，达到最低128×128要求；官方推荐300×300，可在最终图标确定后统一生成 |
 | 截图顺序 | `formats-light.png` → `formats-dark.png` → `html-content.png` → `html-export.png` → `attachments.png`，均在images内，1280×800 |
 | 宣传图 / 视频 | 可选，目前不提供；不要把截图当作440×280宣传图上传 |

@@ -41,6 +41,6 @@
 
 没有勾选思考时，整个`reasoning`字段省略。不会导出页面的React对象、请求头、账号内部状态或未知字段；正文中本来就有的信息仍按原文保存。
 
-附件包含`name`、`isImage`、`imagePreview`，有大小记录时包含`size`（网页记录的字节数，不保证等于预览图大小）。保存到ZIP后使用`path`，值为经过URL编码的相对路径，例如`assets/001-%E5%9B%BE%20%231.png`；脚本访问本地文件前用`decodeURIComponent`解码一次。未下载的附件使用`url`，地址可能带临时签名并可能过期。读取失败时增加`error`；实际保存字节数见ZIP里的`附件清单.json`。
+附件包含`name`、`isImage`、`imagePreview`，有大小记录时包含`size`（网页记录的字节数，不保证等于预览图大小）。保存到ZIP后使用`path`，值为经过URL编码的相对路径，例如`assets/001-%E5%9B%BE%20%231.png`；脚本访问本地文件前用`decodeURIComponent`解码一次。2.3.0另外提供可读的`localPath`，例如`assets/001-图 #1.png`，可直接交给文件系统读取，不要再次解码；原`path`继续保留，schemaVersion仍为1。未下载的附件使用`url`，地址可能带临时签名并可能过期。读取失败时增加`error`；实际保存字节数见ZIP里的`附件清单.json`。
 
 顶层`warnings`记录导出时发现的缺失或失败。拿到JSON并不代表原网页的全部历史、工具或文件都已取到，需结合提示检查。
