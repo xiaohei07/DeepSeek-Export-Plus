@@ -22,7 +22,10 @@ const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <style>body{max-width:860px;margin:40px auto;padding:0 24px;color:#242b36;background:#fff;font:16px/1.8 system-ui,sans-serif;overflow-wrap:anywhere}h1{font-size:28px}h2{font-size:21px;margin-top:32px}a{color:#2357ae}table{display:block;overflow:auto;border-collapse:collapse}th,td{padding:10px;border:1px solid #dce2ea;text-align:left}code{background:#f4f6fa;padding:2px 4px}</style></head>
 <body><main>${marked.parse(policy)}</main></body></html>\n`;
 await writeFile("docs/store/privacy.html", html);
-const files = { "PRIVACY.md": strToU8(policy) };
+const files = {
+  "README.md": strToU8(`# DeepSeek Export Plus商店资料包\n\n先读[维护者清单](store/OWNER-CHECKLIST.md)，填写时对照[后台字段表](store/FORM-FIELDS.md)和[审核说明](store/REVIEWER-NOTES.md)。\n\n这个ZIP是文案与图片资料，不能上传到商店的扩展功能包栏。功能包从[GitHub正式发行页](https://github.com/xiaohei07/DeepSeek-Export-Plus/releases/latest)另行下载，选择DeepSeek-Export-Plus-版本号.zip，不选择Source code。\n\n当前角色图标的公开使用依据尚待处理；详见[图像说明](ASSETS.md)。账号注册、身份验证、协议与最终提交由维护者在官方后台完成。\n`),
+  "PRIVACY.md": strToU8(policy),
+};
 async function collect(directory, prefix = "") {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = `${directory}/${entry.name}`,
@@ -32,7 +35,13 @@ async function collect(directory, prefix = "") {
   }
 }
 await collect("docs/store", "store/");
-for (const name of ["ASSETS.md", "THIRD_PARTY_NOTICES.md", "JSON-FORMAT.md"])
+for (const name of [
+  "ASSETS.md",
+  "THIRD_PARTY_NOTICES.md",
+  "JSON-FORMAT.md",
+  "DEVELOPMENT.md",
+  "VALIDATION.md",
+])
   files[name] = new Uint8Array(await readFile(`docs/${name}`));
 const { version } = JSON.parse(await readFile("package.json", "utf8"));
 await mkdir("output", { recursive: true });

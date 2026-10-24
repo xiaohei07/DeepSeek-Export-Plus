@@ -1,69 +1,56 @@
 # Chrome与Edge上架材料
 
-这些材料对应2.2.0正式版本。**GitHub发行版与浏览器商店分别发布，Chrome、Edge商店尚未提交审核。**账号验证、开发者协议和商店正式提交仍需单独处理。
+对应2.2.0正式版本，2026-10-24按官方文档复核。GitHub版本已经发布，两家浏览器商店尚未提交。发布者为**07xiaohei**，公开支持邮箱为**lazy07xiaohei@gmail.com**，以个人身份发布。
 
-## 已准备的内容
+**账号注册和条目草稿可以开始；正式提交前先处理现有图标的使用依据，并完成审核示例与数据披露检查。**具体事项集中在下面三份文件中，避免在不同说明里反复填同一套资料。
 
-| 文件 | 作用 |
+## 从这里开始
+
+| 文件 | 用途 |
 | --- | --- |
-| [中文介绍](LISTING.zh-CN.md)、[英文介绍](LISTING.en.md) | 名称、短描述、完整介绍、单一用途与支持链接 |
-| [隐私说明源文件](../PRIVACY.md)、[隐私网页](privacy.html) | 说明读取范围、请求对象、保存期限及用户选择；网页由源文件生成 |
-| `images/icon-128.png`、`images/icon-256.png` | 现有小肥鱼图标的商店副本，未改变插件内图像 |
-| `images/formats-light.png`、`formats-dark.png` | 浅色、深色导出窗口，显示格式选择与默认关闭思考 |
-| `images/html-export.png`、`html-content.png` | 真正导出的HTML，展示图片、思考引用、代码、表格和公式 |
-| `images/attachments.png` | 单独选择附件的实际界面 |
-| 本文件后续章节 | 权限用途、审核步骤、提交顺序与仍需补齐的信息 |
+| [维护者上架清单](OWNER-CHECKLIST.md) | 已确认信息、还缺什么、两家账号注册及本人操作顺序 |
+| [逐字段填写表](FORM-FIELDS.md) | 名称、链接、权限说明、数据类别、图片与搜索词 |
+| [审核说明](REVIEWER-NOTES.md) | 创建安全示例的步骤，以及可粘贴的英文审核备注 |
+| [中文介绍](LISTING.zh-CN.md)、[英文介绍](LISTING.en.md) | 商店详细介绍与单一用途；英文文案不表示英文界面已实现 |
+| [隐私说明](../PRIVACY.md)、[隐私HTML](privacy.html) | 数据范围、网络请求、保存期限、有限使用及联系邮箱 |
+| [图像来源](../ASSETS.md) | 现有角色来源与仍需解决的授权问题 |
 
-五张功能截图均为1280×800，来自实际加载扩展的独立Chromium测试环境，使用缩减的演示内容，没有用户账号、原始私人附件或临时签名地址。截图中的`format-demo`是本地模拟页面地址，不是线上示例链接；不要将它提供为审核用网址。英文介绍明确界面目前为简体中文。
+公开隐私地址已经存在，可填写：
 
-Chrome要求128×128图标及至少一张功能截图，支持1280×800或640×400截图；本项目使用1280×800。Edge接受1280×800截图，图标最低128×128。440×280、1400×560宣传图属于可选项，本轮未制作。尺寸与数量以提交时后台要求为准。[Chrome图像要求](https://developer.chrome.com/docs/webstore/images)、[Edge上架说明](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/publish-extension)。
+https://github.com/xiaohei07/DeepSeek-Export-Plus/blob/main/docs/PRIVACY.md
 
-## 权限用途（可填入两家后台）
+使用前在未登录窗口确认能访问。材料包里的privacy.html是静态备份，不是已部署的网站，也不能把电脑上的文件路径填入商店URL栏。当前不需要另买域名或服务器。
 
-| 权限 | 中文说明 | English justification |
-| --- | --- | --- |
-| `scripting` | 在用户打开的DeepSeek页面读取当前消息附近的必要字段，补充折叠思考、工具与附件；所有执行代码都随扩展打包 | Executes packaged code on the current DeepSeek page to read scoped message fields needed for collapsed thinking, tool records and attachments. No remote code is executed. |
-| `https://chat.deepseek.com/*` | 在DeepSeek页面提供导出入口，读取当前会话；分享页请求公开分享接口；chat观察网页自然收到的历史响应 | Adds export controls on DeepSeek pages, reads the active conversation, fetches public share data and observes relevant history responses naturally received by the page. |
-| `https://files.deepseeksvc.com/*` | 用户选择保存附件时，从DeepSeek文件服务下载原文档或图片预览；实际请求限制到`/api/file` | Downloads selected document files and image previews from the DeepSeek file service. The implementation restricts requests to its `/api/file` endpoint. |
-| `clipboardWrite` | 仅点击“复制Markdown”后将结果写入剪贴板 | Writes the exported Markdown to the clipboard only after the user clicks Copy Markdown. |
-| `storage` | 本机保存格式偏好，并在会话存储中暂存PDF预览；不长期保存对话 | Stores format preferences locally and temporarily holds PDF preview content in session storage. Conversation content is not kept in persistent storage. |
+## 安装包与素材
 
-单一用途：导出当前DeepSeek网页对话及用户所选附件，供本地阅读、笔记编辑和个人存档。Remote code字段应选择“不使用”：库、执行脚本和打印字体均包含在安装包内；分享响应、附件字节和图片是数据，文档中的HTML不会作为扩展代码执行。
+上传扩展功能包时选GitHub发行页中的`DeepSeek-Export-Plus-2.2.0.zip`，其根目录直接包含manifest.json。源码ZIP和`store-materials.zip`用途不同，不要上传到扩展包栏。两家可使用同一个符合要求的功能包；若替换内部图标或修改行为，需重新构建并递增版本，不覆盖已有GitHub发行附件。
 
-数据声明需与[隐私说明](../PRIVACY.md)一致：扩展会读取当前网站内容、会话网址与可能包含个人信息的对话，在本机处理；页面历史观察早于用户点击导出。维护者不接收、出售这些数据，不用于广告、信用判断或其他无关用途。不能简单因为“没有后端”就把读取行为描述为“完全不访问用户数据”。正式填写后台分类时，按当时的数据定义确认涉及的网站内容、通信内容和当前网址；不要扩大成访问整个浏览历史，也不要填写未来尚未实现的行为。[Chrome隐私字段](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy)、[Edge隐私填写步骤](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/publish-extension#step-6-enter-privacy-information)。
+当前已有5张1280×800截图，以及128×128、256×256图标。截图来自真实扩展运行的缩减演示，不含私人账号与原始附件；模拟页面地址不能作为审核入口。按格式选择、HTML阅读、附件的顺序上传。角色图标更换时，截图也一起更新。
 
-## 审核测试步骤
+Chrome需要商店图标与至少一张截图；Edge图标最低128×128、推荐300×300。440×280及1400×560宣传图、视频均可后补，本次没有制作。[Chrome图片要求](https://developer.chrome.com/docs/webstore/images)、[Edge字段说明](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/publish-extension)
 
-以下内容可作为2.2.0的审核备注。提交其他版本时，需核对步骤与实际功能一致。
+## 这次补齐的内容
 
-1. 打开`https://chat.deepseek.com`，使用审核人员自己的账号建立两轮普通对话，等回复完成。扩展不提供或要求额外账号、API密钥、付费订阅。
-2. 点击输入区附近的小肥鱼“导出”。页面没有输入区时，入口位于对话顶部。选择一轮，保持思考关闭，取消附件选项，依次单选Markdown、HTML、TXT和JSON。每次应只保存一个对应格式的文件，轮号沿用原对话。
-3. 同时选择两种以上格式。应产生一次ZIP下载，里面有对应的`对话.*`文档。选择格式会记住，关闭再打开窗口后思考选项仍应关闭。
-4. 若会话包含思考或搜索，勾选思考并导出，再取消勾选导出。只有勾选后的文件应包含可取得的思考与工具记录。JSON在未勾选时省略`reasoning`字段。
-5. 上传一张测试图片或小文档，再让DeepSeek回复。选择附带附件并导出HTML与JSON，解压后打开`对话.html`，应能读取保存在`assets`里的图片；JSON记录相对路径，清单记录保存结果。网页只提供图片预览时会标记预览版。
-6. 点击“附件”。选一个文件应直接下载，选多个应只有一个ZIP；失效链接会报告失败，不伪装成成功。
-7. 为这段测试对话创建分享链接，再在share页面重复单格式和ZIP检查。share正文标题固定，下载名称带秒级时间；原始chat标题仍可编辑。
-8. 可选检查原有“PDF”入口：它只打开本地打印预览，最终由浏览器打印窗口保存PDF，不会生成直接下载的PDF附件。
+- 加入已确认的发布者、公开邮箱与个人身份，给出逐字段填写内容。
+- 明确本地处理也需披露，以及页面加载即缓存历史响应的行为；隐私说明补充有限使用声明。
+- 提供审核用示例的准备方法和英文操作步骤，不使用带私人附件的旧对话。
+- 记录角色二创来源不明这一实际缺口，避免把生成插画误写成授权已经齐全。
+- 补充Microsoft Edge155.0.4283.62的隔离扩展集成：chat/share、MD/PDF、附件及四格式下载、ZIP和离线HTML均通过；没有操作个人登录浏览器。
 
-English reviewer note: The UI is in Simplified Chinese. “导出” opens export, “选择对话轮次” selects rounds, “导出格式” selects formats, “包含思考过程与工具记录” includes thinking/tool records, and “附带图片与附件” saves assets. “附件” opens the attachment list. Use your own DeepSeek account and a completed conversation, then its share page. Single-format exports download one document; multiple formats produce one ZIP. Extract the ZIP before opening its HTML so sibling assets can load. Thinking is off by default and is not remembered. The existing PDF button opens a print preview. The extension has no separate login or paid feature gate.
+## 生成资料包
 
-公开分享页可用于无登录测试，但DeepSeek可能改变访问要求；正式提交时应验证准备给审核人员的公开链接仍可访问，并确认内容适合公开。不要提供自己的登录凭据。
-
-## 正式提交前的顺序
-
-1. 2.2.0已完成本地验证与使用者确认，提交时选用正式安装包`DeepSeek-Export-Plus-2.2.0.zip`。若修改代码，需重新构建和验证；商店材料ZIP不能当扩展包上传。
-2. 确认开发者账号和对外联系信息。Chrome需要开发者注册及一次性注册费，金额以后台为准；Edge的扩展开发者注册文档说明目前不收注册费。[Chrome注册](https://developer.chrome.com/docs/webstore/register/)、[Edge注册](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/create-dev-account)。本轮没有登录后台核验账号状态、付费或接受协议。
-3. 核对隐私说明的公开链接，可使用[仓库隐私说明](https://github.com/xiaohei07/DeepSeek-Export-Plus/blob/main/docs/PRIVACY.md)。另有`docs/store/privacy.html`可部署到GitHub Pages或自己的静态网站；目前未部署独立隐私站点，不能填写一个尚不可访问的地址。
-4. 核对图标使用依据，保留[图像来源说明](../ASSETS.md)和上游MIT许可。项目图标由用户提供的角色参考生成，现有材料记录了使用过程，未独立核验参考角色的完整权属；若商店要求证明，需补充相应材料或换用权属明确的原创形象。名称和描述不使用“官方”或暗示DeepSeek授权。
-5. Chrome Developer Dashboard新建条目并上传正式ZIP，填写介绍、图片、单一用途、权限、隐私与分发范围。Edge Partner Center使用相同功能包和相应材料填写，分别检查后台警告和审核备注。
-6. 先保存草稿，核对版本、截图、公开链接与数据声明，再提交审核。实际商店通过后才在README增加商店安装链接，不写“已上架”占位链接。
-
-## 生成材料包
-
-在项目根目录执行：
+在项目根目录运行：
 
 ```bash
 npm run prepare:store
 ```
 
-脚本由`docs/PRIVACY.md`生成静态隐私网页，复制图标，并把现有商店材料打包到`output/DeepSeek-Export-Plus-版本号-store-materials.zip`。要更新截图，先构建并执行`npm run test:formats`。脚本不会联网发布、登录商店或修改GitHub。
+生成`output/DeepSeek-Export-Plus-2.2.0-store-materials.zip`，包含本目录文案与图片、隐私说明、图像来源及依赖说明。解压后先读根目录README.md。脚本不会上传或提交商店，也不会把开发者证件和账号凭据打包。
+
+## 官方依据
+
+- Chrome：[注册](https://developer.chrome.com/docs/webstore/register)、[账号设置](https://developer.chrome.com/docs/webstore/set-up-account)、[两步验证](https://developer.chrome.com/docs/webstore/program-policies/two-step-verification)、[Trader声明](https://developer.chrome.com/docs/webstore/program-policies/trader-verification-faq)、[发布](https://developer.chrome.com/docs/webstore/publish)、[隐私字段](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy)。
+- 数据处理：[本地处理也需披露](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq)、[披露与同意](https://developer.chrome.com/docs/webstore/program-policies/disclosure-requirements)、[有限使用](https://developer.chrome.com/docs/webstore/program-policies/limited-use)。
+- Edge：[开发者注册](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/create-dev-account)、[发布流程](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/publish-extension)。
+
+账号后台未实际登录，具体付款金额、身份核验字段、市场列表与审核结果以账号当时显示为准。填写完成不等于已经通过商店审核。

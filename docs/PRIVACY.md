@@ -35,6 +35,10 @@
 
 用户可以取消思考或附件选项、只导出部分轮次、关闭导出窗口，或在浏览器扩展管理页停用、卸载插件。上传的图片可能只能取得DeepSeek网页预览版，导出界面与文件清单会说明。
 
+## 有限使用声明
+
+本扩展对用户数据的使用与必要传输遵循[Chrome Web Store用户数据政策](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq)，包括Limited Use要求。取得的数据仅用于所说明的对话与附件导出功能，不用于广告、出售、信用评估或贷款判断。维护者没有接收对话的服务器，也不会通过扩展让他人读取用户对话；用户自行提交的反馈材料按其提供的范围处理。
+
 ## 联系与变更
 
-问题可以通过[GitHub Issues](https://github.com/xiaohei07/DeepSeek-Export-Plus/issues)联系维护者。Issues是公开页面，请先删去私人对话、签名链接和账号凭据。若功能或数据处理方式变化，会随版本更新本说明；发布到商店时，商店中的声明应与实际版本保持一致。
+维护者为07xiaohei（GitHub账号xiaohei07），支持邮箱为[lazy07xiaohei@gmail.com](mailto:lazy07xiaohei@gmail.com)。也可以通过[GitHub Issues](https://github.com/xiaohei07/DeepSeek-Export-Plus/issues)反馈。Issues是公开页面，请先删去私人对话、签名链接和账号凭据。若功能或数据处理方式变化，会随版本更新本说明；发布到商店时，商店中的声明应与实际版本保持一致。

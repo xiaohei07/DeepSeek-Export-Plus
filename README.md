@@ -146,7 +146,7 @@ npm run test:browser
 
 chat页面还会在内存中保留当前页面自然收到的历史消息响应，只选择对话字段，不读取Cookie、令牌或请求头，不主动重放认证请求。刷新页面或切换会话后不会把上一会话的数据用于当前导出。实现说明见[开发说明](docs/DEVELOPMENT.md)。
 
-具体的数据处理与保存期限见[隐私说明](docs/PRIVACY.md)。[商店上架材料](docs/store/SUBMISSION.md)包含介绍、权限用途、截图和审核测试步骤；材料准备完成不代表已经上架，也不保证审核通过。
+具体的数据处理与保存期限见[隐私说明](docs/PRIVACY.md)。[商店上架材料](docs/store/SUBMISSION.md)包含介绍、后台字段填写表、维护者清单、截图和审核步骤。公开支持邮箱为[lazy07xiaohei@gmail.com](mailto:lazy07xiaohei@gmail.com)。现有角色图标的使用依据仍需补齐或通过更换原创图标解决；材料准备完成不代表已经上架，也不保证审核通过。
 
 ## 已知限制与常见问题
 

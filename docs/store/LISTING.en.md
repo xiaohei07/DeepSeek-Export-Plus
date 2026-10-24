@@ -1,6 +1,6 @@
 # Store listing (English)
 
-Prepared for version 2.2; not submitted. The extension interface is currently in Simplified Chinese. Use the field contents below, not this note, in the listing.
+Prepared for version 2.2.0. Publisher: 07xiaohei. Support: lazy07xiaohei@gmail.com. The interface is in Simplified Chinese. Copy field contents only; see the submission checklist for current readiness.
 
 ## Name
 
@@ -8,7 +8,7 @@ DeepSeek Export Plus · 网页对话导出
 
 ## Short description
 
-Save selected DeepSeek chat/share conversations as Markdown, HTML, TXT or JSON, with optional attachments and multi-format ZIP export.
+Export DeepSeek chats to Markdown, HTML, TXT or JSON. Select rounds, save attachments, or bundle formats in one ZIP.
 
 ## Description
 
@@ -20,7 +20,7 @@ Code blocks, tables, user and DeepSeek labels, and available source links are pr
 
 Images and document attachments can be saved with the conversation or selected in the separate attachment window. One attachment downloads directly; multiple attachments are bundled into one ZIP. Uploaded images use the previews provided by DeepSeek, which are not guaranteed to be the original uploaded files. Failed downloads are recorded in the attachment manifest.
 
-Document conversion and ZIP creation run locally in your browser. There are no export-count fees, ads or telemetry. Shared content and files are still requested from DeepSeek, and saving remote images may contact their original hosts. Only format preferences are stored persistently. The existing PDF print preview remains available; direct PDF, PNG screenshot and Word generation are not provided.
+Document conversion and ZIP creation run locally in your browser. There are no export-count fees, ads or telemetry. The extension reads the current conversation, its URL and selected attachments. To complete chat history, it temporarily holds relevant history responses naturally received by the page in local memory from page load, potentially before the export dialog opens. The maintainer does not receive these conversations. Shared content and files are requested from DeepSeek, and saving remote images may contact their original hosts. Only format preferences are stored persistently. The existing PDF print preview remains available; direct PDF, PNG screenshot and Word generation are not provided.
 
 Requires a Chromium-based desktop browser, version 120 or later. The interface is currently in Simplified Chinese. Website changes, account-specific layouts and expired file links can affect results. The extension cannot recover data the website does not provide. JSON is an extension-specific archive format, not an importable DeepSeek backup.
 
@@ -34,4 +34,8 @@ Export the user's current DeepSeek web conversation and selected attachments to 
 
 - Website: https://github.com/xiaohei07/DeepSeek-Export-Plus
 - Support: https://github.com/xiaohei07/DeepSeek-Export-Plus/issues
-- Privacy policy: publish and verify the prepared policy before submission; see [submission notes](SUBMISSION.md).
+- Privacy policy: https://github.com/xiaohei07/DeepSeek-Export-Plus/blob/main/docs/PRIVACY.md
+- Support email: lazy07xiaohei@gmail.com
+- Publisher: 07xiaohei
+
+The manifest contains a fixed Chinese name and short description. Edge may display these as read-only fields. Do not rename the published ZIP manually to claim English UI support; this English text can be used for editable listing fields and reviewer notes.
