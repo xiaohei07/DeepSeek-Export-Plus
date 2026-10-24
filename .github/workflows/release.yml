@@ -22,7 +22,10 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const tag = 'v' + JSON.parse(fs.readFileSync('package.json')).version;
+          const manifest = JSON.parse(fs.readFileSync('public/manifest.json'));
+          const lock = JSON.parse(fs.readFileSync('package-lock.json'));
           if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error('Expected a stable semantic version');
+          if (manifest.version_name || 'v' + manifest.version !== tag || 'v' + lock.version !== tag || 'v' + lock.packages[''].version !== tag) throw new Error('Release versions must agree and have no preview label');
           if (process.env.GITHUB_REF_TYPE === 'tag' && process.env.GITHUB_REF_NAME !== tag) throw new Error('Tag and package version differ');
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\n`);
           NODE
@@ -30,6 +33,7 @@ jobs:
       - run: npm run package
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
+      - run: npm run prepare:store
       - name: Publish release assets
         env:
           GH_TOKEN: ${{ github.token }}
